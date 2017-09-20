@@ -14,7 +14,7 @@ namespace Xamarin.Forms.Build.Tasks
  			return new XmlType (namespaceURI, typename, null).GetTypeReference (module, xmlInfo);
  		}
 
-		static IList<XmlnsDefinitionAttribute> s_xmlnsDefinitions;
+		static IList<Internals.XmlnsDefinitionAttribute> s_xmlnsDefinitions;
 
 		static void GatherXmlnsDefinitionAttributes()
 		{
@@ -24,10 +24,10 @@ namespace Xamarin.Forms.Build.Tasks
 				typeof(XamlLoader).Assembly,
 			};
 
-			s_xmlnsDefinitions = new List<XmlnsDefinitionAttribute>();
+			s_xmlnsDefinitions = new List<Internals.XmlnsDefinitionAttribute>();
 
 			foreach (var assembly in assemblies)
-				foreach (XmlnsDefinitionAttribute attribute in assembly.GetCustomAttributes(typeof(XmlnsDefinitionAttribute), false)) {
+				foreach (Internals.XmlnsDefinitionAttribute attribute in assembly.GetCustomAttributes(typeof(Internals.XmlnsDefinitionAttribute), false)) {
 					s_xmlnsDefinitions.Add(attribute);
 					attribute.AssemblyName = attribute.AssemblyName ?? assembly.FullName;
 				}
@@ -42,7 +42,7 @@ namespace Xamarin.Forms.Build.Tasks
 			var elementName = xmlType.Name;
 			var typeArguments = xmlType.TypeArguments;
 
-			var lookupAssemblies = new List<XmlnsDefinitionAttribute>();
+			var lookupAssemblies = new List<Internals.XmlnsDefinitionAttribute>();
 
 			var lookupNames = new List<string>();
 
@@ -60,7 +60,7 @@ namespace Xamarin.Forms.Build.Tasks
 
 				XmlnsHelper.ParseXmlns(namespaceURI, out typename, out ns, out asmstring, out targetPlatform);
 				asmstring = asmstring ?? module.Assembly.Name.Name;
-				lookupAssemblies.Add(new XmlnsDefinitionAttribute(namespaceURI, ns) {
+				lookupAssemblies.Add(new Internals.XmlnsDefinitionAttribute(namespaceURI, ns) {
 					AssemblyName = asmstring
 				});
 			}

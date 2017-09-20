@@ -286,7 +286,7 @@ namespace Xamarin.Forms.Xaml
 				((IXmlLineInfo)reader).LinePosition);
 		}
 
-		static IList<XmlnsDefinitionAttribute> s_xmlnsDefinitions;
+		static IList<Forms.Internals.XmlnsDefinitionAttribute> s_xmlnsDefinitions;
 
 		static void GatherXmlnsDefinitionAttributes()
 		{
@@ -296,10 +296,10 @@ namespace Xamarin.Forms.Xaml
 				typeof(XamlLoader).GetTypeInfo().Assembly,
 			};
 
-			s_xmlnsDefinitions = new List<XmlnsDefinitionAttribute>();
+			s_xmlnsDefinitions = new List<Forms.Internals.XmlnsDefinitionAttribute>();
 
 			foreach (var assembly in assemblies)
-				foreach (XmlnsDefinitionAttribute attribute in assembly.GetCustomAttributes(typeof(XmlnsDefinitionAttribute))) {
+				foreach (Forms.Internals.XmlnsDefinitionAttribute attribute in assembly.GetCustomAttributes(typeof(Forms.Internals.XmlnsDefinitionAttribute))) {
 					s_xmlnsDefinitions.Add(attribute);
 					attribute.AssemblyName = attribute.AssemblyName ?? assembly.FullName;
 				}
@@ -316,7 +316,7 @@ namespace Xamarin.Forms.Xaml
 			var typeArguments = xmlType.TypeArguments;
 			exception = null;
 
-			var lookupAssemblies = new List<XmlnsDefinitionAttribute>();
+			var lookupAssemblies = new List<Forms.Internals.XmlnsDefinitionAttribute>();
 			var lookupNames = new List<string>();
 
 			foreach (var xmlnsDef in s_xmlnsDefinitions) {
@@ -328,7 +328,7 @@ namespace Xamarin.Forms.Xaml
 			if (lookupAssemblies.Count == 0) {
 				string ns, asmstring, _;
 				XmlnsHelper.ParseXmlns(namespaceURI, out _, out ns, out asmstring, out _);
-				lookupAssemblies.Add(new XmlnsDefinitionAttribute(namespaceURI, ns) {
+				lookupAssemblies.Add(new Forms.Internals.XmlnsDefinitionAttribute(namespaceURI, ns) {
 					AssemblyName = asmstring ?? currentAssembly.FullName
 				});
 			}
