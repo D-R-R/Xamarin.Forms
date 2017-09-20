@@ -1,23 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Xamarin.Forms;
-#if __UNIFIED__
-using UIKit;
 using Foundation;
-#else
-using MonoTouch.UIKit;
-using MonoTouch.Foundation;
-#endif
-#if __UNIFIED__
-using RectangleF = CoreGraphics.CGRect;
-using SizeF = CoreGraphics.CGSize;
-using PointF = CoreGraphics.CGPoint;
-
-#else
-using nfloat=System.Single;
-using nint=System.Int32;
-using nuint=System.UInt32;
-#endif
+using UIKit;
 
 namespace Xamarin.Forms.Platform.iOS
 {
@@ -72,7 +56,7 @@ namespace Xamarin.Forms.Platform.iOS
 			{
 				var reusable = tableView.DequeueReusableCell(result.GetType().FullName);
 
-				var cellRenderer = Registrar.Registered.GetHandler<CellRenderer>(result.GetType());
+				var cellRenderer = Internals.Registrar.Registered.GetHandler<CellRenderer>(result.GetType());
 				return cellRenderer.GetCell(result, reusable, Table);
 			}
 			return null;
@@ -148,8 +132,12 @@ namespace Xamarin.Forms.Platform.iOS
 
 		public override nfloat GetHeightForRow(UITableView tableView, NSIndexPath indexPath)
 		{
-			var h = View.Model.GetCell(indexPath.Section, indexPath.Row).Height;
-			if (h == -1)
+			var cell = View.Model.GetCell(indexPath.Section, indexPath.Row);
+			var h = cell.Height;
+
+			if (View.RowHeight == -1 && h == -1 && cell is ViewCell) {
+				return UITableView.AutomaticDimension;
+			} else if (h == -1)
 				return tableView.RowHeight;
 			return (nfloat)h;
 		}

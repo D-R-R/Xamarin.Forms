@@ -1,8 +1,8 @@
-﻿using System;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media;
+using Xamarin.Forms.Internals;
 
 #if WINDOWS_UWP
 
@@ -12,23 +12,14 @@ namespace Xamarin.Forms.Platform.UWP
 namespace Xamarin.Forms.Platform.WinRT
 #endif
 {
-	public class TimePickerRenderer : ViewRenderer<TimePicker, FormsTimePicker>, IWrapperAware
+	public class TimePickerRenderer : ViewRenderer<TimePicker, Windows.UI.Xaml.Controls.TimePicker>
 	{
 		Brush _defaultBrush;
-
-		public void NotifyWrapped()
-		{
-			if (Control != null)
-			{
-				Control.ForceInvalidate += PickerOnForceInvalidate;
-			}
-		}
 
 		protected override void Dispose(bool disposing)
 		{
 			if (disposing && Control != null)
 			{
-				Control.ForceInvalidate -= PickerOnForceInvalidate;
 				Control.TimeChanged -= OnControlTimeChanged;
 				Control.Loaded -= ControlOnLoaded;
 			}
@@ -44,7 +35,7 @@ namespace Xamarin.Forms.Platform.WinRT
 			{
 				if (Control == null)
 				{
-					var picker = new FormsTimePicker();
+					var picker = new Windows.UI.Xaml.Controls.TimePicker();
 					SetNativeControl(picker);
 
 					Control.TimeChanged += OnControlTimeChanged;
@@ -74,15 +65,12 @@ namespace Xamarin.Forms.Platform.WinRT
 				UpdateTextColor();
 		}
 
+		protected override bool PreventGestureBubbling { get; set; } = true;
+
 		void OnControlTimeChanged(object sender, TimePickerValueChangedEventArgs e)
 		{
 			Element.Time = e.NewTime;
-			Element?.InvalidateMeasure(InvalidationTrigger.SizeRequestChanged);
-		}
-
-		void PickerOnForceInvalidate(object sender, EventArgs eventArgs)
-		{
-			Element?.InvalidateMeasure(InvalidationTrigger.SizeRequestChanged);
+			((IVisualElementController)Element)?.InvalidateMeasure(InvalidationTrigger.SizeRequestChanged);
 		}
 
 		void UpdateTime()

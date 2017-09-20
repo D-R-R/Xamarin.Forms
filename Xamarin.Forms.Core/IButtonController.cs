@@ -1,7 +1,9 @@
 namespace Xamarin.Forms
 {
-	internal interface IButtonController : IViewController
+	public interface IButtonController : IViewController
 	{
 		void SendClicked();
+		void SendPressed();
+		void SendReleased();
 	}
 }

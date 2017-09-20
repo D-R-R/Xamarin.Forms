@@ -8,7 +8,7 @@ using Xamarin.UITest;
 using NUnit.Framework;
 #endif
 
-namespace Xamarin.Forms.Controls
+namespace Xamarin.Forms.Controls.Issues
 {
 	[Preserve (AllMembers = true)]
 	[Issue (IssueTracker.Bugzilla, 28570, "https://bugzilla.xamarin.com/show_bug.cgi?id=28570")]
@@ -105,13 +105,13 @@ namespace Xamarin.Forms.Controls
 		[Ignore("Fails intermittently on TestCloud")]
 		public void Bugzilla28570Test ()
 		{
-			if (RunningApp is AndroidApp) {
-				RunningApp.WaitForElement (q => q.Marked ("Tap"));
-				RunningApp.Screenshot ("At test page");
-				RunningApp.Tap (q => q.Marked ("Tap"));
+#if __ANDROID__
+			RunningApp.WaitForElement (q => q.Marked ("Tap"));
+			RunningApp.Screenshot ("At test page");
+			RunningApp.Tap (q => q.Marked ("Tap"));
 
-				RunningApp.WaitForElement (q => q.Marked ("28570Target"));
-			}
+			RunningApp.WaitForElement (q => q.Marked ("28570Target"));
+#endif
 		}
 #endif
 	}

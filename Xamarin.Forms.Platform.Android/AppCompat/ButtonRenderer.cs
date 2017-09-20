@@ -1,23 +1,25 @@
 using System;
 using System.ComponentModel;
 using Android.Content;
-using Android.Content.Res;
 using Android.Graphics;
-using Android.Graphics.Drawables;
-using Android.Support.V4.Content;
 using Android.Support.V7.Widget;
 using Android.Util;
-using GlobalResource = Android.Resource;
 using Object = Java.Lang.Object;
+using AView = Android.Views.View;
+using AMotionEvent = Android.Views.MotionEvent;
+using AMotionEventActions = Android.Views.MotionEventActions;
+using static System.String;
 
 namespace Xamarin.Forms.Platform.Android.AppCompat
 {
-	public class ButtonRenderer : ViewRenderer<Button, AppCompatButton>, global::Android.Views.View.IOnAttachStateChangeListener
+    public class ButtonRenderer : ViewRenderer<Button, AppCompatButton>, AView.IOnAttachStateChangeListener
 	{
+		ButtonBackgroundTracker _backgroundTracker;
 		TextColorSwitcher _textColorSwitcher;
 		float _defaultFontSize;
 		Typeface _defaultTypeface;
 		bool _isDisposed;
+		int _imageHeight = -1;
 
 		public ButtonRenderer()
 		{
@@ -26,12 +28,12 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 
 		global::Android.Widget.Button NativeButton => Control;
 
-		void IOnAttachStateChangeListener.OnViewAttachedToWindow(global::Android.Views.View attachedView)
+		void AView.IOnAttachStateChangeListener.OnViewAttachedToWindow(AView attachedView)
 		{
 			UpdateText();
 		}
 
-		void IOnAttachStateChangeListener.OnViewDetachedFromWindow(global::Android.Views.View detachedView)
+		void AView.IOnAttachStateChangeListener.OnViewDetachedFromWindow(AView detachedView)
 		{
 		}
 
@@ -39,6 +41,20 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 		{
 			UpdateText();
 			return base.GetDesiredSize(widthConstraint, heightConstraint);
+		}
+
+		protected override void OnLayout(bool changed, int l, int t, int r, int b)
+		{
+			if (_imageHeight > -1)
+			{
+				// We've got an image (and no text); it's already centered horizontally,
+				// we just need to adjust the padding so it centers vertically
+				var diff = (b - t - _imageHeight) / 2;
+				diff = Math.Max(diff, 0);
+				Control?.SetPadding(0, diff, 0, -diff);
+			}
+
+			base.OnLayout(changed, l, t, r, b);
 		}
 
 		protected override AppCompatButton CreateNativeControl()
@@ -55,6 +71,15 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 
 			if (disposing)
 			{
+				if (Control != null)
+				{
+					Control.SetOnClickListener(null);
+					Control.SetOnTouchListener(null);
+					Control.RemoveOnAttachStateChangeListener(this);
+					Control.Tag = null;
+					_textColorSwitcher = null;
+				}
+				_backgroundTracker?.Dispose();
 			}
 
 			base.Dispose(disposing);
@@ -75,6 +100,7 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 					AppCompatButton button = CreateNativeControl();
 
 					button.SetOnClickListener(ButtonClickListener.Instance.Value);
+					button.SetOnTouchListener(ButtonTouchListener.Instance.Value);
 					button.Tag = this;
 					_textColorSwitcher = new TextColorSwitcher(button.TextColors);  
 					SetNativeControl(button);
@@ -82,8 +108,12 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 					button.AddOnAttachStateChangeListener(this);
 				}
 
+				if (_backgroundTracker == null)
+					_backgroundTracker = new ButtonBackgroundTracker(Element, Control);
+				else
+					_backgroundTracker.Button = e.NewElement;
+
 				UpdateAll();
-				UpdateBackgroundColor();
 			}
 		}
 
@@ -110,42 +140,7 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 			if (Element == null || Control == null)
 				return;
 
-			Color backgroundColor = Element.BackgroundColor;
-			if (backgroundColor.IsDefault)
-			{
-				if (Control.SupportBackgroundTintList != null)
-				{
-					Context context = Context;
-					int id = GlobalResource.Attribute.ButtonTint;
-					unchecked
-					{
-						using (var value = new TypedValue())
-						{
-							try
-							{
-								Resources.Theme theme = context.Theme;
-								if (theme != null && theme.ResolveAttribute(id, value, true))
-#pragma warning disable 618
-									Control.SupportBackgroundTintList = Resources.GetColorStateList(value.Data);
-#pragma warning restore 618
-								else
-									Control.SupportBackgroundTintList = new ColorStateList(ColorExtensions.States, new[] { (int)0xffd7d6d6, 0x7fd7d6d6 });
-							}
-							catch (Exception ex)
-							{
-								Log.Warning("Xamarin.Forms.Platform.Android.ButtonRenderer", "Could not retrieve button background resource: {0}", ex);
-								Control.SupportBackgroundTintList = new ColorStateList(ColorExtensions.States, new[] { (int)0xffd7d6d6, 0x7fd7d6d6 });
-							}
-						}
-					}
-				}
-			}
-			else
-			{
-				int intColor = backgroundColor.ToAndroid().ToArgb();
-				int disableColor = backgroundColor.MultiplyAlpha(0.5).ToAndroid().ToArgb();
-				Control.SupportBackgroundTintList = new ColorStateList(ColorExtensions.States, new[] { intColor, disableColor });
-			}
+			_backgroundTracker?.UpdateBackgroundColor();
 		}
 
 		void UpdateAll()
@@ -155,12 +150,23 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 			UpdateBitmap();
 			UpdateTextColor();
 			UpdateEnabled();
+			UpdateBackgroundColor();
+			UpdateDrawable();
+		}
+
+		void UpdateDrawable()
+		{
+			if (Element == null || Control == null)
+				return;
+
+			_backgroundTracker?.UpdateDrawable();
 		}
 
 		void UpdateBitmap()
 		{
 			var elementImage = Element.Image;
 			var imageFile = elementImage?.File;
+			_imageHeight = -1;
 
 			if (elementImage == null || string.IsNullOrEmpty(imageFile))
 			{
@@ -170,14 +176,20 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 
 			var image = Context.Resources.GetDrawable(imageFile);
 
-			if (string.IsNullOrEmpty(Element.Text))
+			if (IsNullOrEmpty(Element.Text))
 			{
 				// No text, so no need for relative position; just center the image
 				// There's no option for just plain-old centering, so we'll use Top 
-				// (which handles the horizontal centering) and some tricksy padding 
-				// to handle the vertical centering
+				// (which handles the horizontal centering) and some tricksy padding (in OnLayout)
+				// to handle the vertical centering 
+
+				// Clear any previous padding and set the image as top/center
+				Control.SetPadding(0, 0, 0, 0);
 				Control.SetCompoundDrawablesWithIntrinsicBounds(null, image, null, null);
-				Control.SetPadding(0, Control.PaddingTop, 0, -Control.PaddingTop);
+
+				// Keep track of the image height so we can use it in OnLayout
+				_imageHeight = image.IntrinsicHeight;
+
 				image?.Dispose();
 				return;
 			}
@@ -239,7 +251,14 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 
 		void UpdateText()
 		{
+			var oldText = NativeButton.Text;
 			NativeButton.Text = Element.Text;
+
+			// If we went from or to having no text, we need to update the image position
+			if (IsNullOrEmpty(oldText) != IsNullOrEmpty(NativeButton.Text))
+			{
+				UpdateBitmap();
+			}
 		}
 
 		void UpdateTextColor()
@@ -247,7 +266,7 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 			_textColorSwitcher?.UpdateTextColor(Control, Element.TextColor);
 		}
 
-		class ButtonClickListener : Object, IOnClickListener
+		class ButtonClickListener : Object, AView.IOnClickListener
 		{
 			#region Statics
 
@@ -255,10 +274,33 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 
 			#endregion
 
-			public void OnClick(global::Android.Views.View v)
+			public void OnClick(AView v)
 			{
 				var renderer = v.Tag as ButtonRenderer;
 				((IButtonController)renderer?.Element)?.SendClicked();
+			}
+		}
+
+		class ButtonTouchListener : Object, AView.IOnTouchListener
+		{
+			public static readonly Lazy<ButtonTouchListener> Instance = new Lazy<ButtonTouchListener>(() => new ButtonTouchListener());
+
+			public bool OnTouch(AView v, AMotionEvent e)
+			{
+				var renderer = v.Tag as ButtonRenderer;
+				if (renderer != null)
+				{
+					var buttonController = renderer.Element as IButtonController;
+					if (e.Action == AMotionEventActions.Down)
+					{
+						buttonController?.SendPressed();
+					}
+					else if (e.Action == AMotionEventActions.Up)
+					{
+						buttonController?.SendReleased();
+					}
+				}
+				return false;
 			}
 		}
 	}

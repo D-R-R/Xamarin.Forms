@@ -58,7 +58,7 @@ namespace Xamarin.Forms.Controls
 
 		static ContentPage SearchBarPage()
 		{
-			var searchbarTextColorDefaultToggle = new Entry() { Text = "Default SearchBar Text Color" };
+			var searchbarTextColorDefaultToggle = new SearchBar() { Text = "Default SearchBar Text Color" };
 			var searchbarTextColorToggleButton = new Button() { Text = "Toggle SearchBar Color" };
 			searchbarTextColorToggleButton.Clicked += (sender, args) => {
 				if (searchbarTextColorDefaultToggle.TextColor.IsDefault)
@@ -73,7 +73,7 @@ namespace Xamarin.Forms.Controls
 				}
 			};
 
-			var searchbarPlaceholderColorDefaultToggle = new Entry() { Placeholder = "Default Placeholder Color" };
+			var searchbarPlaceholderColorDefaultToggle = new SearchBar() { Placeholder = "Default Placeholder Color" };
 			var searchbarPlaceholderToggleButton = new Button() { Text = "Toggle Placeholder Color" };
 			searchbarPlaceholderToggleButton.Clicked += (sender, args) => {
 				if (searchbarPlaceholderColorDefaultToggle.PlaceholderColor.IsDefault)
@@ -324,7 +324,7 @@ namespace Xamarin.Forms.Controls
 
 			return new ContentPage {
 				Title = "TimePicker",
-				Padding = new Thickness(0, Device.OnPlatform(20, 0, 0), 0, Device.OnPlatform(00, 0, 0)),
+				Padding = Device.RuntimePlatform == Device.iOS ? new Thickness(0, 20, 0, 0) : new Thickness(0),
 				Content = new StackLayout {
 					VerticalOptions = LayoutOptions.Fill,
 					HorizontalOptions = LayoutOptions.Fill,
@@ -389,7 +389,7 @@ namespace Xamarin.Forms.Controls
 
 			return new ContentPage {
 				Title = "DatePicker",
-				Padding = new Thickness(0, Device.OnPlatform(20, 0, 0), 0, Device.OnPlatform(00, 0, 0)),
+				Padding = Device.RuntimePlatform == Device.iOS ? new Thickness(0, 20, 0, 0) : new Thickness(0),
 				Content = new StackLayout {
 					VerticalOptions = LayoutOptions.Fill,
 					HorizontalOptions = LayoutOptions.Fill,
@@ -457,7 +457,7 @@ namespace Xamarin.Forms.Controls
 
 			return new ContentPage {
 				Title = "Picker",
-				Padding = new Thickness(0, Device.OnPlatform(20, 0, 0), 0, Device.OnPlatform(00, 0, 0)),
+				Padding = Device.RuntimePlatform == Device.iOS ? new Thickness(0, 20, 0, 0) : new Thickness(0),
 				Content = new StackLayout {
 					VerticalOptions = LayoutOptions.Fill,
 					HorizontalOptions = LayoutOptions.Fill,

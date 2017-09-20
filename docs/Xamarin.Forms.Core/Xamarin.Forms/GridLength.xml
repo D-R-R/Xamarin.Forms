@@ -48,7 +48,7 @@
         <Parameter Name="value" Type="System.Double" />
       </Parameters>
       <Docs>
-        <param name="value">To be added.</param>
+        <param name="value">The value of the new grid length.</param>
         <summary>Initializes a new Absolute GridLength.</summary>
         <remarks>This is striclty equivalent to new GridLength (value, GridUnitType.Absolute).</remarks>
       </Docs>
@@ -268,6 +268,23 @@
         <returns>A GridLength of type GridUnitType.Absolute and of size absolutesize</returns>
         <remarks>
         </remarks>
+      </Docs>
+    </Member>
+    <Member MemberName="Star">
+      <MemberSignature Language="C#" Value="public static Xamarin.Forms.GridLength Star { get; }" />
+      <MemberSignature Language="ILAsm" Value=".property valuetype Xamarin.Forms.GridLength Star" />
+      <MemberType>Property</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>2.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <ReturnValue>
+        <ReturnType>Xamarin.Forms.GridLength</ReturnType>
+      </ReturnValue>
+      <Docs>
+        <summary>A ready to reuse GridLength of GridUnitType.Star with a Value of 1.</summary>
+        <value>
+        </value>
+        <remarks>If a Value other than 1 is needed with GridUnitType.Star, then use the constructor GridLength (value, GridUnitType.Star).</remarks>
       </Docs>
     </Member>
     <Member MemberName="ToString">

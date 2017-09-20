@@ -1,22 +1,8 @@
 using System;
 using System.ComponentModel;
-using System.Diagnostics;
-#if __UNIFIED__
 using UIKit;
-#else
-using MonoTouch.UIKit;
-using System.Drawing;
-#endif
-#if __UNIFIED__
 using RectangleF = CoreGraphics.CGRect;
 using SizeF = CoreGraphics.CGSize;
-using PointF = CoreGraphics.CGPoint;
-
-#else
-using nfloat=System.Single;
-using nint=System.Int32;
-using nuint=System.UInt32;
-#endif
 
 namespace Xamarin.Forms.Platform.iOS
 {
@@ -62,8 +48,11 @@ namespace Xamarin.Forms.Platform.iOS
 		internal class ViewTableCell : UITableViewCell, INativeElementView
 		{
 			WeakReference<IVisualElementRenderer> _rendererRef;
-
 			ViewCell _viewCell;
+
+			Element INativeElementView.Element => ViewCell;
+			internal bool SupressSeparator { get; set; }
+			bool _disposed;
 
 			public ViewTableCell(string key) : base(UITableViewCellStyle.Default, key)
 			{
@@ -80,26 +69,29 @@ namespace Xamarin.Forms.Platform.iOS
 				}
 			}
 
-			Element INativeElementView.Element
-			{
-				get { return ViewCell; }
-			}
-
 			public override void LayoutSubviews()
 			{
 				//This sets the content views frame.
 				base.LayoutSubviews();
 
-				var contentFrame = ContentView.Frame;
+				//TODO: Determine how best to hide the separator line when there is an accessory on the cell
+				if (SupressSeparator && Accessory == UITableViewCellAccessory.None)
+				{
+					var oldFrame = Frame;
+					ContentView.Bounds = new RectangleF(oldFrame.Location, new SizeF(oldFrame.Width, oldFrame.Height + 0.5f));
+				}
 
-				Layout.LayoutChildIntoBoundingRegion(ViewCell.View, contentFrame.ToRectangle());
+				var contentFrame = ContentView.Frame;
+				var view = ViewCell.View;
+
+				Layout.LayoutChildIntoBoundingRegion(view, contentFrame.ToRectangle());
 
 				if (_rendererRef == null)
 					return;
 
 				IVisualElementRenderer renderer;
 				if (_rendererRef.TryGetTarget(out renderer))
-					renderer.NativeView.Frame = contentFrame;
+					renderer.NativeView.Frame = view.Bounds.ToRectangleF();
 			}
 
 			public override SizeF SizeThatFits(SizeF size)
@@ -108,16 +100,23 @@ namespace Xamarin.Forms.Platform.iOS
 				if (!_rendererRef.TryGetTarget(out renderer))
 					return base.SizeThatFits(size);
 
+				if (renderer.Element == null)
+					return SizeF.Empty;
+
 				double width = size.Width;
 				var height = size.Height > 0 ? size.Height : double.PositiveInfinity;
 				var result = renderer.Element.Measure(width, height);
 
-				// make sure to add in the separator
-				return new SizeF(size.Width, (float)result.Request.Height + 1f / UIScreen.MainScreen.Scale);
+				// make sure to add in the separator if needed
+				var finalheight = (float)result.Request.Height + (SupressSeparator ? 0f : 1f) / UIScreen.MainScreen.Scale;
+				return new SizeF(size.Width, finalheight);
 			}
 
 			protected override void Dispose(bool disposing)
 			{
+				if (_disposed)
+					return;
+
 				if (disposing)
 				{
 					IVisualElementRenderer renderer;
@@ -129,13 +128,20 @@ namespace Xamarin.Forms.Platform.iOS
 
 						_rendererRef = null;
 					}
+
+					_viewCell = null;
 				}
+
+				_disposed = true;
 
 				base.Dispose(disposing);
 			}
 
 			IVisualElementRenderer GetNewRenderer()
 			{
+				if (_viewCell.View == null)
+					throw new InvalidOperationException($"ViewCell must have a {nameof(_viewCell.View)}");
+
 				var newRenderer = Platform.CreateRenderer(_viewCell.View);
 				_rendererRef = new WeakReference<IVisualElementRenderer>(newRenderer);
 				ContentView.AddSubview(newRenderer.NativeView);
@@ -147,7 +153,9 @@ namespace Xamarin.Forms.Platform.iOS
 				if (_viewCell != null)
 					Device.BeginInvokeOnMainThread(_viewCell.SendDisappearing);
 
+				this._viewCell = cell;
 				_viewCell = cell;
+
 				Device.BeginInvokeOnMainThread(_viewCell.SendAppearing);
 
 				IVisualElementRenderer renderer;
@@ -158,9 +166,9 @@ namespace Xamarin.Forms.Platform.iOS
 					if (renderer.Element != null && renderer == Platform.GetRenderer(renderer.Element))
 						renderer.Element.ClearValue(Platform.RendererProperty);
 
-					var type = Registrar.Registered.GetHandlerType(_viewCell.View.GetType());
+					var type = Internals.Registrar.Registered.GetHandlerType(this._viewCell.View.GetType());
 					if (renderer.GetType() == type || (renderer is Platform.DefaultRenderer && type == null))
-						renderer.SetElement(_viewCell.View);
+						renderer.SetElement(this._viewCell.View);
 					else
 					{
 						//when cells are getting reused the element could be already set to another cell
@@ -171,7 +179,7 @@ namespace Xamarin.Forms.Platform.iOS
 					}
 				}
 
-				Platform.SetRenderer(_viewCell.View, renderer);
+				Platform.SetRenderer(this._viewCell.View, renderer);
 			}
 		}
 	}

@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Phone.Controls;
 using Microsoft.Phone.Shell;
+using Xamarin.Forms.Internals;
 
 namespace Xamarin.Forms.Platform.WinPhone
 {
@@ -248,7 +249,7 @@ namespace Xamarin.Forms.Platform.WinPhone
 			var parent = current.Parent as NavigationPage;
 			if (parent != null)
 			{
-				if (parent.InternalChildren[0] == current)
+				if (((IPageController)parent).InternalChildren[0] == current)
 					replaceWithRoot = true;
 			}
 
@@ -436,7 +437,7 @@ namespace Xamarin.Forms.Platform.WinPhone
 			_navModel.PushModal(newRoot);
 			SetCurrent(newRoot, false, true);
 
-			((Application)newRoot.RealParent).NavigationProxy.Inner = this;
+			Application.Current.NavigationProxy.Inner = this;
 		}
 
 		internal event EventHandler SizeChanged;
@@ -565,7 +566,7 @@ namespace Xamarin.Forms.Platform.WinPhone
 
 			TaggedAppBarMenuItem[] deadMenuItems = _page.ApplicationBar.MenuItems.OfType<TaggedAppBarMenuItem>().Where(b => b.Tag is ToolbarItem && !items.Contains(b.Tag)).ToArray();
 
-			// we must remove the dead buttons before adding the new ones so we dont accidentally go over the limit during the tranistion
+			// we must remove the dead buttons before adding the new ones so we don't accidentally go over the limit during the transition
 			foreach (TaggedAppBarButton deadButton in deadButtons)
 			{
 				deadButton.Dispose();
@@ -623,7 +624,7 @@ namespace Xamarin.Forms.Platform.WinPhone
 				if (item == null)
 					return;
 
-				if (e.PropertyName == MenuItem.IsEnabledProperty.PropertyName)
+				if (e.PropertyName == item.IsEnabledPropertyName)
 					IsEnabled = item.IsEnabled;
 				else if (e.PropertyName == MenuItem.TextProperty.PropertyName)
 					Text = !string.IsNullOrWhiteSpace(item.Text) ? item.Text : (string)item.Icon ?? "ApplicationIcon.jpg";

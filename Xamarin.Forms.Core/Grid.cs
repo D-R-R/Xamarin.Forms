@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using Xamarin.Forms.Internals;
 
 namespace Xamarin.Forms
 {
-	public partial class Grid : Layout<View>
+	public partial class Grid : Layout<View>, IGridController
 	{
 		public static readonly BindableProperty RowProperty = BindableProperty.CreateAttached("Row", typeof(int), typeof(Grid), default(int), validateValue: (bindable, value) => (int)value >= 0);
 
@@ -17,10 +18,10 @@ namespace Xamarin.Forms
 		public static readonly BindableProperty ColumnSpanProperty = BindableProperty.CreateAttached("ColumnSpan", typeof(int), typeof(Grid), 1, validateValue: (bindable, value) => (int)value >= 1);
 
 		public static readonly BindableProperty RowSpacingProperty = BindableProperty.Create("RowSpacing", typeof(double), typeof(Grid), 6d,
-			propertyChanged: (bindable, oldValue, newValue) => ((Grid)bindable).InvalidateMeasure(InvalidationTrigger.MeasureChanged));
+			propertyChanged: (bindable, oldValue, newValue) => ((Grid)bindable).InvalidateMeasureInternal(InvalidationTrigger.MeasureChanged));
 
 		public static readonly BindableProperty ColumnSpacingProperty = BindableProperty.Create("ColumnSpacing", typeof(double), typeof(Grid), 6d,
-			propertyChanged: (bindable, oldValue, newValue) => ((Grid)bindable).InvalidateMeasure(InvalidationTrigger.MeasureChanged));
+			propertyChanged: (bindable, oldValue, newValue) => ((Grid)bindable).InvalidateMeasureInternal(InvalidationTrigger.MeasureChanged));
 
 		public static readonly BindableProperty ColumnDefinitionsProperty = BindableProperty.Create("ColumnDefinitions", typeof(ColumnDefinitionCollection), typeof(Grid), null,
 			validateValue: (bindable, value) => value != null, propertyChanged: (bindable, oldvalue, newvalue) =>
@@ -211,9 +212,14 @@ namespace Xamarin.Forms
 			view.ComputedConstraint = result;
 		}
 
-		internal override void InvalidateMeasure(InvalidationTrigger trigger)
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void InvalidateMeasureInernalNonVirtual(InvalidationTrigger trigger)
 		{
-			base.InvalidateMeasure(trigger);
+			InvalidateMeasureInternal(trigger);
+		}
+		internal override void InvalidateMeasureInternal(InvalidationTrigger trigger)
+		{
+			base.InvalidateMeasureInternal(trigger);
 			_columns = null;
 			_rows = null;
 		}
@@ -326,12 +332,14 @@ namespace Xamarin.Forms
 				if (view == null)
 					throw new ArgumentNullException("view");
 
-				int lastRow = this.Any() ? this.Max(w => GetRow(w) + GetRowSpan(w) - 1) : -1;
-				lastRow = Math.Max(lastRow, Parent.RowDefinitions.Count - 1);
-				int lastCol = this.Any() ? this.Max(w => GetColumn(w) + GetColumnSpan(w) - 1) : -1;
-				lastCol = Math.Max(lastCol, Parent.ColumnDefinitions.Count - 1);
+				var rows = RowCount();
+				var columns = ColumnCount();
 
-				Add(view, lastCol + 1, lastCol + 2, 0, Math.Max(1, lastRow));
+				// if no rows, create a row
+				if (rows == 0)
+					rows++;
+
+				Add(view, columns, columns + 1, 0, rows);
 			}
 
 			public void AddVertical(IEnumerable<View> views)
@@ -347,13 +355,25 @@ namespace Xamarin.Forms
 				if (view == null)
 					throw new ArgumentNullException("view");
 
-				int lastRow = this.Any() ? this.Max(w => GetRow(w) + GetRowSpan(w) - 1) : -1;
-				lastRow = Math.Max(lastRow, Parent.RowDefinitions.Count - 1);
-				int lastCol = this.Any() ? this.Max(w => GetColumn(w) + GetColumnSpan(w) - 1) : -1;
-				lastCol = Math.Max(lastCol, Parent.ColumnDefinitions.Count - 1);
+				var rows = RowCount();
+				var columns = ColumnCount();
 
-				Add(view, 0, Math.Max(1, lastCol), lastRow + 1, lastRow + 2);
+				// if no columns, create a column
+				if (columns == 0)
+					columns++;
+
+				Add(view, 0, columns, rows, rows + 1);
 			}
+
+			private int RowCount() => Math.Max(
+				this.Max<View, int?>(w => GetRow(w) + GetRowSpan(w)) ?? 0,
+				Parent.RowDefinitions.Count
+			);
+
+			private int ColumnCount() => Math.Max(
+				this.Max<View, int?>(w => GetColumn(w) + GetColumnSpan(w)) ?? 0,
+				Parent.ColumnDefinitions.Count
+			);
 		}
 	}
 }

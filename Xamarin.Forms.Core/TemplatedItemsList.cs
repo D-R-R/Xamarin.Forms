@@ -6,11 +6,15 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Cadenza.Collections;
+using Xamarin.Forms.Internals;
 
-namespace Xamarin.Forms
+namespace Xamarin.Forms.Internals
 {
-	internal sealed class TemplatedItemsList<TView, TItem> : BindableObject, IReadOnlyList<TItem>, IList, INotifyCollectionChanged, IDisposable where TView : BindableObject, IItemsView<TItem>
-																																				where TItem : BindableObject
+
+	[EditorBrowsable(EditorBrowsableState.Never)]
+	public sealed class TemplatedItemsList<TView, TItem> : BindableObject, ITemplatedItemsList<TItem>, IList, IDisposable
+												where TView : BindableObject, IItemsView<TItem>
+												where TItem : BindableObject
 	{
 		public static readonly BindableProperty NameProperty = BindableProperty.Create("Name", typeof(string), typeof(TemplatedItemsList<TView, TItem>), null);
 
@@ -83,6 +87,12 @@ namespace Xamarin.Forms
 			}
 			else
 				ListProxy = new ListProxy(new object[0]);
+		}
+
+		event PropertyChangedEventHandler ITemplatedItemsList<TItem>.PropertyChanged
+		{
+			add { PropertyChanged += value; }
+			remove { PropertyChanged -= value; }
 		}
 
 		public BindingBase GroupDisplayBinding
@@ -179,10 +189,15 @@ namespace Xamarin.Forms
 			}
 		}
 
-		internal ListProxy ListProxy
+		internal IListProxy ListProxy
 		{
-			get { return (ListProxy)GetValue(ListProxyPropertyKey.BindableProperty); }
+			get { return (IListProxy)GetValue(ListProxyPropertyKey.BindableProperty); }
 			private set { SetValue(ListProxyPropertyKey, value); }
+		}
+
+		IListProxy ITemplatedItemsList<TItem>.ListProxy
+		{
+			get { return ListProxy; }
 		}
 
 		DataTemplate ItemTemplate
@@ -337,7 +352,7 @@ namespace Xamarin.Forms
 			return count;
 		}
 
-		public int GetGlobalIndexForGroup(TemplatedItemsList<TView, TItem> group)
+		public int GetGlobalIndexForGroup(ITemplatedItemsList<TItem> group)
 		{
 			if (group == null)
 				throw new ArgumentNullException("group");
@@ -493,6 +508,11 @@ namespace Xamarin.Forms
 		}
 
 		public event NotifyCollectionChangedEventHandler GroupedCollectionChanged;
+		event NotifyCollectionChangedEventHandler ITemplatedItemsList<TItem>.GroupedCollectionChanged
+		{
+			add { GroupedCollectionChanged += value; }
+			remove { GroupedCollectionChanged -= value; }
+		}
 
 		public int IndexOf(TItem item)
 		{
@@ -503,13 +523,19 @@ namespace Xamarin.Forms
 			return GetIndex(item);
 		}
 
-		internal TItem CreateContent(int index, object item, bool insert = false)
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public DataTemplate SelectDataTemplate(object item)
+		{
+			return ItemTemplate.SelectDataTemplate(item, _itemsView);
+		}
+
+		public TItem CreateContent(int index, object item, bool insert = false)
 		{
 			TItem content = ItemTemplate != null ? (TItem)ItemTemplate.CreateContent(item, _itemsView) : _itemsView.CreateDefault(item);
 
 			content = UpdateContent(content, index, item);
 
-			if (CachingStrategy == ListViewCachingStrategy.RecycleElement)
+			if ((CachingStrategy & ListViewCachingStrategy.RecycleElement) != 0)
 				return content;
 
 			for (int i = _templatedObjects.Count; i <= index; i++)
@@ -534,6 +560,11 @@ namespace Xamarin.Forms
 				return this;
 
 			return _groupedItems[index];
+		}
+
+		ITemplatedItemsList<TItem> ITemplatedItemsList<TItem>.GetGroup(int index)
+		{
+			return GetGroup(index);
 		}
 
 		internal static TemplatedItemsList<TView, TItem> GetGroup(TItem item)
@@ -590,6 +621,10 @@ namespace Xamarin.Forms
 			object item = ListProxy[index];
 			return UpdateContent(content, index, item);
 		}
+		TItem ITemplatedItemsList<TItem>.UpdateContent(TItem content, int index)
+		{
+			return UpdateContent(content, index);
+		}
 
 		internal TItem UpdateHeader(TItem content, int groupIndex)
 		{
@@ -607,6 +642,10 @@ namespace Xamarin.Forms
 			_itemsView.SetupContent(content, groupIndex);
 
 			return content;
+		}
+		TItem ITemplatedItemsList<TItem>.UpdateHeader(TItem content, int groupIndex)
+		{
+			return UpdateHeader(content, groupIndex);
 		}
 
 		void BindableOnPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -642,6 +681,14 @@ namespace Xamarin.Forms
 		IEnumerable GetItemsViewSource()
 		{
 			return (IEnumerable)_itemsView.GetValue(_itemSourceProperty);
+		}
+
+		object ITemplatedItemsList<TItem>.BindingContext
+		{
+			get
+			{
+				return BindingContext;
+			}
 		}
 
 		void GroupedReset()
@@ -850,7 +897,7 @@ namespace Xamarin.Forms
 
 		void OnGroupingEnabledChanged()
 		{
-			if (CachingStrategy == ListViewCachingStrategy.RecycleElement)
+			if ((CachingStrategy & ListViewCachingStrategy.RecycleElement) != 0)
 				_templatedObjects.Clear();
 
 			OnItemsSourceChanged(true);
@@ -922,7 +969,7 @@ namespace Xamarin.Forms
 				return;
 			}
 
-			if (CachingStrategy == ListViewCachingStrategy.RecycleElement)
+			if ((CachingStrategy & ListViewCachingStrategy.RecycleElement) != 0)
 			{
 				OnCollectionChanged(e);
 				return;
@@ -930,7 +977,7 @@ namespace Xamarin.Forms
 
 			/* HACKAHACKHACK: LongListSelector on WP SL has a bug in that it completely fails to deal with
 			 * INCC notifications that include more than 1 item. */
-			if (fixWindows && Device.OS == TargetPlatform.WinPhone)
+			if (fixWindows && Device.RuntimePlatform == Device.WinPhone)
 			{
 				SplitCollectionChangedItems(e);
 				return;
@@ -1165,7 +1212,7 @@ namespace Xamarin.Forms
 
 			//Hack: the cell could still be visible on iOS because the cells are reloaded after this unhook 
 			//this causes some visual updates caused by a null datacontext and default values like IsVisible
-			if (Device.OS == TargetPlatform.iOS && CachingStrategy == ListViewCachingStrategy.RetainElement)
+			if (Device.RuntimePlatform == Device.iOS && CachingStrategy == ListViewCachingStrategy.RetainElement)
 				await Task.Delay(100);
 			item.BindingContext = null;
 		}

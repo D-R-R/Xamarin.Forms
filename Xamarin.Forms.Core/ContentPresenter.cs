@@ -19,16 +19,16 @@ namespace Xamarin.Forms
 
 		protected override void LayoutChildren(double x, double y, double width, double height)
 		{
-			for (var i = 0; i < LogicalChildren.Count; i++)
+			for (var i = 0; i < LogicalChildrenInternal.Count; i++)
 			{
-				Element element = LogicalChildren[i];
+				Element element = LogicalChildrenInternal[i];
 				var child = element as View;
 				if (child != null)
 					LayoutChildIntoBoundingRegion(child, new Rectangle(x, y, width, height));
 			}
 		}
 
-		[Obsolete("Use OnMeasure")]
+		[Obsolete("OnSizeRequest is obsolete as of version 2.2.0. Please use OnMeasure instead.")]
 		protected override SizeRequest OnSizeRequest(double widthConstraint, double heightConstraint)
 		{
 			double widthRequest = WidthRequest;

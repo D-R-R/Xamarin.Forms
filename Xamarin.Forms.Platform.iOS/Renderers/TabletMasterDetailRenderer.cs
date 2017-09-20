@@ -1,11 +1,7 @@
 using System;
 using System.ComponentModel;
-#if __UNIFIED__
 using UIKit;
-
-#else
-using MonoTouch.UIKit;
-#endif
+using Xamarin.Forms.PlatformConfiguration.iOSSpecific;
 
 namespace Xamarin.Forms.Platform.iOS
 {
@@ -59,10 +55,10 @@ namespace Xamarin.Forms.Platform.iOS
 
 		VisualElementTracker _tracker;
 
-		protected MasterDetailPage MasterDetailPage
-		{
-			get { return _masterDetailPage ?? (_masterDetailPage = (MasterDetailPage)Element); }
-		}
+		Page PageController => Element as Page;
+		Element ElementController => Element as Element;
+
+		protected MasterDetailPage MasterDetailPage => _masterDetailPage ?? (_masterDetailPage = (MasterDetailPage)Element);
 
 		UIBarButtonItem PresentButton
 		{
@@ -71,36 +67,50 @@ namespace Xamarin.Forms.Platform.iOS
 
 		protected override void Dispose(bool disposing)
 		{
-		    if (!_disposed && disposing)
-		    {
-		        if (Element != null)
-		        {
-		            ((Page)Element).SendDisappearing();
-		            Element.PropertyChanged -= HandlePropertyChanged;
-		            Element = null;
-		        }
+			if (_disposed)
+			{
+				return;
+			}
 
-		        if (_tracker != null)
-		        {
-		            _tracker.Dispose();
-		            _tracker = null;
-		        }
+			_disposed = true;
 
-		        if (_events != null)
-		        {
-		            _events.Dispose();
-		            _events = null;
-		        }
+			if (disposing)
+			{
+				if (Element != null)
+				{
+					PageController.SendDisappearing();
+					Element.PropertyChanged -= HandlePropertyChanged;
 
-		        if (_masterController != null)
-		        {
-		            _masterController.WillAppear -= MasterControllerWillAppear;
-		            _masterController.WillDisappear -= MasterControllerWillDisappear;
-		        }
+					if (MasterDetailPage?.Master != null)
+					{
+						MasterDetailPage.Master.PropertyChanged -= HandleMasterPropertyChanged;
+					}
 
-		        _disposed = true;
-		    }
-		    base.Dispose(disposing);
+					Element = null;
+				}
+
+				if (_tracker != null)
+				{
+					_tracker.Dispose();
+					_tracker = null;
+				}
+
+				if (_events != null)
+				{
+					_events.Dispose();
+					_events = null;
+				}
+
+				if (_masterController != null)
+				{
+					_masterController.WillAppear -= MasterControllerWillAppear;
+					_masterController.WillDisappear -= MasterControllerWillDisappear;
+				}
+
+				ClearControllers();
+			}
+
+			base.Dispose(disposing);
 		}
 
 		public VisualElement Element { get; private set; }
@@ -153,7 +163,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 		public override void ViewDidAppear(bool animated)
 		{
-			((Page)Element).SendAppearing();
+			PageController.SendAppearing();
 			base.ViewDidAppear(animated);
 			ToggleMaster();
 		}
@@ -161,7 +171,7 @@ namespace Xamarin.Forms.Platform.iOS
 		public override void ViewDidDisappear(bool animated)
 		{
 			base.ViewDidDisappear(animated);
-			((Page)Element).SendDisappearing();
+			PageController?.SendDisappearing();
 		}
 
 		public override void ViewDidLayoutSubviews()
@@ -211,15 +221,21 @@ namespace Xamarin.Forms.Platform.iOS
 			if (!MasterDetailPage.ShouldShowSplitMode && _masterVisible)
 			{
 				MasterDetailPage.CanChangeIsPresented = true;
-				if (Forms.IsiOS8OrNewer)
-				{
-					PreferredDisplayMode = UISplitViewControllerDisplayMode.PrimaryHidden;
-					PreferredDisplayMode = UISplitViewControllerDisplayMode.Automatic;
-				}
+				PreferredDisplayMode = UISplitViewControllerDisplayMode.PrimaryHidden;
+				PreferredDisplayMode = UISplitViewControllerDisplayMode.Automatic;
 			}
-			MasterDetailPage.UpdateMasterBehavior(MasterDetailPage);
+
+			MasterDetailPage.UpdateMasterBehavior();
 			MessagingCenter.Send<IVisualElementRenderer>(this, NavigationRenderer.UpdateToolbarButtons);
 			base.WillRotate(toInterfaceOrientation, duration);
+		}
+
+		public override UIViewController ChildViewControllerForStatusBarHidden()
+		{
+			if (((MasterDetailPage)Element).Detail != null)
+				return (UIViewController)Platform.GetRenderer(((MasterDetailPage)Element).Detail);
+			else
+				return base.ChildViewControllerForStatusBarHidden();
 		}
 
 		protected virtual void OnElementChanged(VisualElementChangedEventArgs e)
@@ -263,10 +279,10 @@ namespace Xamarin.Forms.Platform.iOS
 
 			if (e.PropertyName == "Master" || e.PropertyName == "Detail")
 				UpdateControllers();
-			else if (e.PropertyName == MasterDetailPage.IsPresentedProperty.PropertyName)
+			else if (e.PropertyName == Xamarin.Forms.MasterDetailPage.IsPresentedProperty.PropertyName)
 				ToggleMaster();
-			else if (e.PropertyName == MasterDetailPage.IsGestureEnabledProperty.PropertyName)
-				PresentsWithGesture = MasterDetailPage.IsGestureEnabled;
+			else if (e.PropertyName == Xamarin.Forms.MasterDetailPage.IsGestureEnabledProperty.PropertyName)
+				base.PresentsWithGesture = this.MasterDetailPage.IsGestureEnabled;
 			MessagingCenter.Send<IVisualElementRenderer>(this, NavigationRenderer.UpdateToolbarButtons);
 		}
 
@@ -274,22 +290,19 @@ namespace Xamarin.Forms.Platform.iOS
 		{
 			_masterVisible = true;
 			if (MasterDetailPage.CanChangeIsPresented)
-				((IElementController)Element).SetValueFromRenderer(MasterDetailPage.IsPresentedProperty, true);
+				ElementController.SetValueFromRenderer(MasterDetailPage.IsPresentedProperty, true);
 		}
 
 		void MasterControllerWillDisappear(object sender, EventArgs e)
 		{
 			_masterVisible = false;
 			if (MasterDetailPage.CanChangeIsPresented)
-				((IElementController)Element).SetValueFromRenderer(MasterDetailPage.IsPresentedProperty, false);
+				ElementController.SetValueFromRenderer(MasterDetailPage.IsPresentedProperty, false);
 		}
 
 		void PerformButtonSelector()
 		{
-			if (Forms.IsiOS8OrNewer)
-				DisplayModeButtonItem.Target.PerformSelector(DisplayModeButtonItem.Action, DisplayModeButtonItem, 0);
-			else
-				PresentButton.Target.PerformSelector(PresentButton.Action, PresentButton, 0);
+			DisplayModeButtonItem.Target.PerformSelector(DisplayModeButtonItem.Action, DisplayModeButtonItem, 0);
 		}
 
 		void ToggleMaster()
@@ -373,9 +386,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 		void IEffectControlProvider.RegisterEffect(Effect effect)
 		{
-			var platformEffect = effect as PlatformEffect;
-			if (platformEffect != null)
-				platformEffect.Container = View;
+			VisualElementRenderer<VisualElement>.RegisterEffect(effect, View);
 		}
 	}
 }

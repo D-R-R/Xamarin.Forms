@@ -1,12 +1,11 @@
 using System;
-#if __UNIFIED__
-using UIKit;
 
-#else
-using MonoTouch.UIKit;
-#endif
-
+#if __MOBILE__
 namespace Xamarin.Forms.Platform.iOS
+#else
+
+namespace Xamarin.Forms.Platform.MacOS
+#endif
 {
 	public class VisualElementPackager : IDisposable
 	{
@@ -14,14 +13,20 @@ namespace Xamarin.Forms.Platform.iOS
 
 		bool _isDisposed;
 
-		public VisualElementPackager(IVisualElementRenderer renderer)
+		IElementController ElementController => _element;
+
+		public VisualElementPackager(IVisualElementRenderer renderer) : this(renderer, null)
+		{
+		}
+
+		VisualElementPackager(IVisualElementRenderer renderer, VisualElement element)
 		{
 			if (renderer == null)
-				throw new ArgumentNullException("renderer");
+				throw new ArgumentNullException(nameof(renderer));
 
 			Renderer = renderer;
 			renderer.ElementChanged += OnRendererElementChanged;
-			SetElement(null, renderer.Element);
+			SetElement(null, element ?? renderer.Element);
 		}
 
 		protected IVisualElementRenderer Renderer { get; set; }
@@ -33,9 +38,9 @@ namespace Xamarin.Forms.Platform.iOS
 
 		public void Load()
 		{
-			for (var i = 0; i < Renderer.Element.LogicalChildren.Count; i++)
+			for (var i = 0; i < ElementController.LogicalChildren.Count; i++)
 			{
-				var child = Renderer.Element.LogicalChildren[i] as VisualElement;
+				var child = ElementController.LogicalChildren[i] as VisualElement;
 				if (child != null)
 					OnChildAdded(child);
 			}
@@ -64,16 +69,22 @@ namespace Xamarin.Forms.Platform.iOS
 			if (_isDisposed)
 				return;
 
-			var viewRenderer = Platform.CreateRenderer(view);
-			Platform.SetRenderer(view, viewRenderer);
+			if (CompressedLayout.GetIsHeadless(view)) {
+				var packager = new VisualElementPackager(Renderer, view);
+				view.IsPlatformEnabled = true;
+				packager.Load();
+			} else {
+				var viewRenderer = Platform.CreateRenderer(view);
+				Platform.SetRenderer(view, viewRenderer);
 
-			var uiview = Renderer.NativeView;
-			uiview.AddSubview(viewRenderer.NativeView);
+				var uiview = Renderer.NativeView;
+				uiview.AddSubview(viewRenderer.NativeView);
 
-			if (Renderer.ViewController != null && viewRenderer.ViewController != null)
-				Renderer.ViewController.AddChildViewController(viewRenderer.ViewController);
+				if (Renderer.ViewController != null && viewRenderer.ViewController != null)
+					Renderer.ViewController.AddChildViewController(viewRenderer.ViewController);
 
-			EnsureChildrenOrder();
+				EnsureChildrenOrder();
+			}
 		}
 
 		protected virtual void OnChildRemoved(VisualElement view)
@@ -90,12 +101,12 @@ namespace Xamarin.Forms.Platform.iOS
 
 		void EnsureChildrenOrder()
 		{
-			if (Renderer.Element.LogicalChildren.Count == 0)
+			if (ElementController.LogicalChildren.Count == 0)
 				return;
 
-			for (var z = 0; z < Renderer.Element.LogicalChildren.Count; z++)
+			for (var z = 0; z < ElementController.LogicalChildren.Count; z++)
 			{
-				var child = Renderer.Element.LogicalChildren[z] as VisualElement;
+				var child = ElementController.LogicalChildren[z] as VisualElement;
 				if (child == null)
 					continue;
 				var childRenderer = Platform.GetRenderer(child);
@@ -104,8 +115,9 @@ namespace Xamarin.Forms.Platform.iOS
 					continue;
 
 				var nativeControl = childRenderer.NativeView;
-
+#if __MOBILE__
 				Renderer.NativeView.BringSubviewToFront(nativeControl);
+#endif
 				nativeControl.Layer.ZPosition = z * 1000;
 			}
 		}
@@ -152,9 +164,11 @@ namespace Xamarin.Forms.Platform.iOS
 				}
 				else
 				{
-					for (var i = 0; i < oldElement.LogicalChildren.Count; i++)
+					var elementController = ((IElementController)oldElement);
+
+					for (var i = 0; i < elementController.LogicalChildren.Count; i++)
 					{
-						var child = oldElement.LogicalChildren[i] as VisualElement;
+						var child = elementController.LogicalChildren[i] as VisualElement;
 						if (child != null)
 							OnChildRemoved(child);
 					}

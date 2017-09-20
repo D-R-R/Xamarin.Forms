@@ -3,16 +3,19 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using Xamarin.Forms.Platform;
+using Xamarin.Forms.Internals;
 
 namespace Xamarin.Forms
 {
 	[ContentProperty("Root")]
 	[RenderWith(typeof(_TableViewRenderer))]
-	public class TableView : View
+	public class TableView : View, ITableViewController, IElementConfiguration<TableView>
 	{
 		public static readonly BindableProperty RowHeightProperty = BindableProperty.Create("RowHeight", typeof(int), typeof(TableView), -1);
 
 		public static readonly BindableProperty HasUnevenRowsProperty = BindableProperty.Create("HasUnevenRows", typeof(bool), typeof(TableView), false);
+
+		readonly Lazy<PlatformConfigurationRegistry<TableView>> _platformConfigurationRegistry;
 
 		readonly TableSectionModel _tableModel;
 
@@ -28,6 +31,7 @@ namespace Xamarin.Forms
 		{
 			VerticalOptions = HorizontalOptions = LayoutOptions.FillAndExpand;
 			Model = _tableModel = new TableSectionModel(this, root);
+			_platformConfigurationRegistry = new Lazy<PlatformConfigurationRegistry<TableView>>(() => new PlatformConfigurationRegistry<TableView>(this));
 		}
 
 		public bool HasUnevenRows
@@ -76,13 +80,22 @@ namespace Xamarin.Forms
 			set { SetValue(RowHeightProperty, value); }
 		}
 
-		internal TableModel Model
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public TableModel Model
 		{
 			get { return _model; }
 			set
 			{
 				_model = value;
 				OnModelChanged();
+			}
+		}
+
+		ITableModel ITableViewController.Model 
+		{
+			get 
+			{
+				return Model;
 			}
 		}
 
@@ -102,7 +115,7 @@ namespace Xamarin.Forms
 				ModelChanged(this, EventArgs.Empty);
 		}
 
-		[Obsolete("Use OnMeasure")]
+		[Obsolete("OnSizeRequest is obsolete as of version 2.2.0. Please use OnMeasure instead.")]
 		protected override SizeRequest OnSizeRequest(double widthConstraint, double heightConstraint)
 		{
 			var minimumSize = new Size(40, 40);
@@ -112,7 +125,13 @@ namespace Xamarin.Forms
 			return new SizeRequest(request, minimumSize);
 		}
 
-		internal event EventHandler ModelChanged;
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public event EventHandler ModelChanged;
+
+		public IPlatformElementConfiguration<T, TableView> On<T>() where T : IConfigPlatform
+		{
+			return _platformConfigurationRegistry.Value.On<T>();
+		}
 
 		void CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
 		{

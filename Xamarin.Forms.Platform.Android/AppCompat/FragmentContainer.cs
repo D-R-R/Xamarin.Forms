@@ -1,9 +1,10 @@
 using System;
 using Android.OS;
 using Android.Runtime;
-using Android.Support.V4.App;
 using Android.Views;
+using Xamarin.Forms.PlatformConfiguration.AndroidSpecific.AppCompat;
 using AView = Android.Views.View;
+using Fragment = Android.Support.V4.App.Fragment;
 
 namespace Xamarin.Forms.Platform.Android.AppCompat
 {
@@ -11,6 +12,7 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 	{
 		readonly WeakReference _pageReference;
 
+		Action<PageContainer> _onCreateCallback;
 		bool? _isVisible;
 		PageContainer _pageContainer;
 		IVisualElementRenderer _visualElementRenderer;
@@ -30,6 +32,8 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 
 		public Page Page => (Page)_pageReference?.Target;
 
+		IPageController PageController => Page as IPageController;
+
 		public override bool UserVisibleHint
 		{
 			get { return base.UserVisibleHint; }
@@ -40,15 +44,20 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 					return;
 				_isVisible = value;
 				if (_isVisible.Value)
-					Page?.SendAppearing();
+					PageController?.SendAppearing();
 				else
-					Page?.SendDisappearing();
+					PageController?.SendDisappearing();
 			}
 		}
 
 		public static Fragment CreateInstance(Page page)
 		{
 			return new FragmentContainer(page) { Arguments = new Bundle() };
+		}
+
+		public void SetOnCreateCallback(Action<PageContainer> callback)
+		{
+			_onCreateCallback = callback;
 		}
 
 		public override AView OnCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState)
@@ -59,6 +68,9 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 				Android.Platform.SetRenderer(Page, _visualElementRenderer);
 
 				_pageContainer = new PageContainer(Forms.Context, _visualElementRenderer, true);
+
+				_onCreateCallback?.Invoke(_pageContainer);
+
 				return _pageContainer;
 			}
 
@@ -69,22 +81,26 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 		{
 			if (Page != null)
 			{
-				IVisualElementRenderer renderer = _visualElementRenderer;
-				PageContainer container = _pageContainer;
-
-				if (container.Handle != IntPtr.Zero && renderer.ViewGroup.Handle != IntPtr.Zero)
+				if (_visualElementRenderer != null)
 				{
-					container.RemoveFromParent();
-					renderer.ViewGroup.RemoveFromParent();
-					Page.ClearValue(Android.Platform.RendererProperty);
+					if (_visualElementRenderer.View.Handle != IntPtr.Zero)
+					{
+						_visualElementRenderer.View.RemoveFromParent();
+					}
 
-					container.Dispose();
-					renderer.Dispose();
+					_visualElementRenderer.Dispose();
 				}
+
+				// We do *not* eagerly dispose of the _pageContainer here; doing so  causes a memory leak 
+				// if animated fragment transitions are enabled (it removes some info that the animation's 
+				// onAnimationEnd handler requires to properly clean things up)
+				// Instead, we let the garbage collector pick it up later, when we can be sure it's safe
+
+				Page?.ClearValue(Android.Platform.RendererProperty);
 			}
 
+			_onCreateCallback = null;
 			_visualElementRenderer = null;
-			_pageContainer = null;
 
 			base.OnDestroyView();
 		}
@@ -97,21 +113,42 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 				return;
 
 			if (hidden)
-				Page.SendDisappearing();
+				PageController?.SendDisappearing();
 			else
-				Page.SendAppearing();
+				PageController?.SendAppearing();
 		}
 
 		public override void OnPause()
 		{
-			Page?.SendDisappearing();
+			bool shouldSendEvent = Application.Current.OnThisPlatform().GetSendDisappearingEventOnPause();
+			if (shouldSendEvent)
+				SendLifecycleEvent(false);
+
 			base.OnPause();
 		}
-		
+
 		public override void OnResume()
 		{
-			Page?.SendAppearing();
+			bool shouldSendEvent = Application.Current.OnThisPlatform().GetSendAppearingEventOnResume();
+			if (shouldSendEvent)
+				SendLifecycleEvent(true);
+
 			base.OnResume();
+		}
+
+		void SendLifecycleEvent(bool isAppearing)
+		{
+			var masterDetailPage = Application.Current.MainPage as MasterDetailPage;
+			var pageContainer = (masterDetailPage != null ? masterDetailPage.Detail : Application.Current.MainPage) as IPageContainer<Page>;
+			Page currentPage = pageContainer?.CurrentPage;
+
+			if(!(currentPage == null || currentPage == PageController))
+				return;
+
+			if (isAppearing && UserVisibleHint)
+				PageController?.SendAppearing();
+			else if(!isAppearing)
+				PageController?.SendDisappearing();
 		}
 	}
 }

@@ -4,6 +4,7 @@ using System.ComponentModel;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Automation;
 using Windows.UI.Xaml.Controls;
+using Xamarin.Forms.Internals;
 
 #if WINDOWS_UWP
 
@@ -46,6 +47,8 @@ namespace Xamarin.Forms.Platform.WinRT
 			get { return Element; }
 		}
 
+		Page Page => Element as Page;
+
 		public event EventHandler<VisualElementChangedEventArgs> ElementChanged;
 
 		public SizeRequest GetDesiredSize(double widthConstraint, double heightConstraint)
@@ -65,6 +68,11 @@ namespace Xamarin.Forms.Platform.WinRT
 			Height = oldHeight;
 
 			return new SizeRequest(result);
+		}
+
+		UIElement IVisualElementRenderer.GetNativeElement()
+		{
+			return null;
 		}
 
 		public void SetElement(VisualElement element)
@@ -109,7 +117,7 @@ namespace Xamarin.Forms.Platform.WinRT
 			OnElementChanged(new ElementChangedEventArgs<CarouselPage>(oldPage, newPage));
 
 			if (!string.IsNullOrEmpty(Element?.AutomationId))
-				SetValue(AutomationProperties.AutomationIdProperty, Element.AutomationId);
+				SetValue(Windows.UI.Xaml.Automation.AutomationProperties.AutomationIdProperty, Element.AutomationId);
 		}
 
 		protected virtual void Dispose(bool disposing)
@@ -124,7 +132,7 @@ namespace Xamarin.Forms.Platform.WinRT
 			}
 
 			_disposed = true;
-			Element?.SendDisappearing();
+			Page?.SendDisappearing();
 			SetElement(null);
 		}
 
@@ -150,7 +158,7 @@ namespace Xamarin.Forms.Platform.WinRT
 
 		void OnLoaded(object sender, RoutedEventArgs e)
 		{
-			Element?.SendAppearing();
+			Page?.SendAppearing();
 		}
 
 		void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -169,7 +177,7 @@ namespace Xamarin.Forms.Platform.WinRT
 
 		void OnUnloaded(object sender, RoutedEventArgs e)
 		{
-			Element?.SendDisappearing();
+			Page?.SendDisappearing();
 		}
 
 		void UpdateCurrentPage()

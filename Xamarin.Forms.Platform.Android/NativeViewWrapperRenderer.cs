@@ -1,3 +1,5 @@
+using Xamarin.Forms.Internals;
+
 namespace Xamarin.Forms.Platform.Android
 {
 	public class NativeViewWrapperRenderer : ViewRenderer<NativeViewWrapper, global::Android.Views.View>
@@ -15,6 +17,12 @@ namespace Xamarin.Forms.Platform.Android
 			return result ?? base.GetDesiredSize(widthConstraint, heightConstraint);
 		}
 
+		// not called by the view wrapper renderer
+		protected override global::Android.Views.View CreateNativeControl()
+		{
+			return new global::Android.Views.View(Context);
+		}
+
 		protected override void OnElementChanged(ElementChangedEventArgs<NativeViewWrapper> e)
 		{
 			base.OnElementChanged(e);
@@ -22,7 +30,7 @@ namespace Xamarin.Forms.Platform.Android
 			if (e.OldElement == null)
 			{
 				SetNativeControl(Element.NativeView);
-				Control.LayoutChange += (sender, args) => Element?.InvalidateMeasure(InvalidationTrigger.MeasureChanged);
+				Control.LayoutChange += (sender, args) => ((IVisualElementController)Element)?.InvalidateMeasure(InvalidationTrigger.MeasureChanged);
 			}
 		}
 

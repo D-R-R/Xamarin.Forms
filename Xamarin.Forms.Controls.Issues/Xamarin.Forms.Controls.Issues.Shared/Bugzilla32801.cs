@@ -9,7 +9,7 @@ using NUnit.Framework;
 using Xamarin.UITest.iOS;
 #endif
 
-namespace Xamarin.Forms.Controls
+namespace Xamarin.Forms.Controls.Issues
 {
 	[Preserve (AllMembers = true)]
 	[Issue (IssueTracker.Bugzilla, 32801, "Memory Leak in TabbedPage + NavigationPage")]
@@ -73,19 +73,23 @@ namespace Xamarin.Forms.Controls
 			}
 		}
 
-		#if UITEST
+		#if UITEST && __IOS__
 		[Test]
 		public void Bugzilla32801Test ()
 		{
-			if (RunningApp is iOSApp) {
-				RunningApp.Tap (c => c.Marked ("btnAdd"));
-				RunningApp.Tap (c => c.Marked ("btnAdd"));
-				RunningApp.Tap (c => c.Marked ("btnStack"));
-				RunningApp.WaitForElement (c => c.Marked ("Stack 3"));
-				RunningApp.Tap (c => c.Marked ("Tab"));
-				RunningApp.Tap (c => c.Marked ("btnStack"));
-				RunningApp.WaitForElement (c => c.Marked ("Stack 1"));
-			}
+			RunningApp.Tap (c => c.Marked ("btnAdd"));
+			RunningApp.Tap (c => c.Marked ("btnAdd"));
+			RunningApp.Tap (c => c.Marked ("btnStack"));
+			RunningApp.WaitForElement (c => c.Marked ("Stack 3"));
+			RunningApp.Tap (c => c.Marked ("Tab"));
+			RunningApp.Tap (c => c.Marked ("btnStack"));
+			RunningApp.WaitForElement (c => c.Marked ("Stack 1"));
+		}
+
+		[TearDown]
+		public void TearDown() 
+		{
+			RunningApp.SetOrientationPortrait ();
 		}
 #endif
 	}

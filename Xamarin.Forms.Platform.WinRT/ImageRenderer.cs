@@ -1,8 +1,10 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Threading.Tasks;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
+using Xamarin.Forms.Internals;
 
 #if WINDOWS_UWP
 
@@ -15,6 +17,7 @@ namespace Xamarin.Forms.Platform.WinRT
 	public class ImageRenderer : ViewRenderer<Image, Windows.UI.Xaml.Controls.Image>
 	{
 		bool _measured;
+		bool _disposed;
 
 		public override SizeRequest GetDesiredSize(double widthConstraint, double heightConstraint)
 		{
@@ -23,22 +26,33 @@ namespace Xamarin.Forms.Platform.WinRT
 
 			_measured = true;
 
-			var result = new Size { Width = ((BitmapImage)Control.Source).PixelWidth, Height = ((BitmapImage)Control.Source).PixelHeight };
+			var result = new Size { Width = ((BitmapSource)Control.Source).PixelWidth, Height = ((BitmapSource)Control.Source).PixelHeight };
 
 			return new SizeRequest(result);
 		}
 
 		protected override void Dispose(bool disposing)
 		{
-			if (Control != null)
+			if (_disposed)
 			{
-				Control.ImageOpened -= OnImageOpened;
+				return;
+			}
+
+			_disposed = true;
+
+			if (disposing)
+			{
+				if (Control != null)
+				{
+					Control.ImageOpened -= OnImageOpened;
+					Control.ImageFailed -= OnImageFailed;
+				}
 			}
 
 			base.Dispose(disposing);
 		}
 
-		protected override void OnElementChanged(ElementChangedEventArgs<Image> e)
+		protected override async void OnElementChanged(ElementChangedEventArgs<Image> e)
 		{
 			base.OnElementChanged(e);
 
@@ -48,20 +62,21 @@ namespace Xamarin.Forms.Platform.WinRT
 				{
 					var image = new Windows.UI.Xaml.Controls.Image();
 					image.ImageOpened += OnImageOpened;
+					image.ImageFailed += OnImageFailed;
 					SetNativeControl(image);
 				}
 
-				UpdateSource();
+				await TryUpdateSource();
 				UpdateAspect();
 			}
 		}
 
-		protected override void OnElementPropertyChanged(object sender, PropertyChangedEventArgs e)
+		protected override async void OnElementPropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
 			base.OnElementPropertyChanged(sender, e);
 
 			if (e.PropertyName == Image.SourceProperty.PropertyName)
-				UpdateSource();
+				await TryUpdateSource();
 			else if (e.PropertyName == Image.AspectProperty.PropertyName)
 				UpdateAspect();
 		}
@@ -86,27 +101,76 @@ namespace Xamarin.Forms.Platform.WinRT
 			{
 				RefreshImage();
 			}
+
+			Element?.SetIsLoading(false);
+		}
+
+		protected virtual void OnImageFailed(object sender, ExceptionRoutedEventArgs exceptionRoutedEventArgs)
+		{
+			Log.Warning("Image Loading", $"Image failed to load: {exceptionRoutedEventArgs.ErrorMessage}" );
+			Element?.SetIsLoading(false);
 		}
 
 		void RefreshImage()
 		{
-			Element?.InvalidateMeasure(InvalidationTrigger.RendererReady);
+			((IVisualElementController)Element)?.InvalidateMeasure(InvalidationTrigger.RendererReady);
 		}
 
 		void UpdateAspect()
 		{
+			if (_disposed || Element == null || Control == null)
+			{
+				return;
+			}
+
 			Control.Stretch = GetStretch(Element.Aspect);
+			if (Element.Aspect == Aspect.AspectFill || Element.Aspect == Aspect.AspectFit) // Then Center Crop
+			{
+				Control.HorizontalAlignment = HorizontalAlignment.Center;
+				Control.VerticalAlignment = VerticalAlignment.Center;
+			}
+			else // Default
+			{
+				Control.HorizontalAlignment = HorizontalAlignment.Left;
+				Control.VerticalAlignment = VerticalAlignment.Top;
+			}
 		}
 
-		async void UpdateSource()
+		protected virtual async Task TryUpdateSource()
 		{
-			Element.SetValueCore(Image.IsLoadingPropertyKey, true);
+			// By default we'll just catch and log any exceptions thrown by UpdateSource so we don't bring down
+			// the application; a custom renderer can override this method and handle exceptions from
+			// UpdateSource differently if it wants to
+
+			try
+			{
+				await UpdateSource().ConfigureAwait(false);
+			}
+			catch (Exception ex)
+			{
+				Log.Warning(nameof(ImageRenderer), "Error loading image: {0}", ex);
+			}
+			finally
+			{
+				((IImageController)Element)?.SetIsLoading(false);
+			}
+		}
+
+		protected async Task UpdateSource()
+		{
+			if (_disposed || Element == null || Control == null)
+			{
+				return;
+			}
+
+			Element.SetIsLoading(true);
 
 			ImageSource source = Element.Source;
 			IImageSourceHandler handler;
 			if (source != null && (handler = Registrar.Registered.GetHandler<IImageSourceHandler>(source.GetType())) != null)
 			{
 				Windows.UI.Xaml.Media.ImageSource imagesource;
+
 				try
 				{
 					imagesource = await handler.LoadImageAsync(source);
@@ -119,14 +183,17 @@ namespace Xamarin.Forms.Platform.WinRT
 				// In the time it takes to await the imagesource, some zippy little app
 				// might have disposed of this Image already.
 				if (Control != null)
+				{
 					Control.Source = imagesource;
+				}
 
 				RefreshImage();
 			}
 			else
+			{
 				Control.Source = null;
-
-			Element?.SetValueCore(Image.IsLoadingPropertyKey, false);
+				Element.SetIsLoading(false);
+			}
 		}
 	}
 }

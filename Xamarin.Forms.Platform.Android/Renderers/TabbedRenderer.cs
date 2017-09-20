@@ -11,6 +11,8 @@ namespace Xamarin.Forms.Platform.Android
 			AutoPackage = false;
 		}
 
+		IPageController PageController => Element as IPageController;
+
 		protected override void Dispose(bool disposing)
 		{
 			if (disposing && Element != null && Element.Children.Count > 0)
@@ -31,13 +33,13 @@ namespace Xamarin.Forms.Platform.Android
 		protected override void OnAttachedToWindow()
 		{
 			base.OnAttachedToWindow();
-			Element.SendAppearing();
+			PageController.SendAppearing();
 		}
 
 		protected override void OnDetachedFromWindow()
 		{
 			base.OnDetachedFromWindow();
-			Element.SendDisappearing();
+			PageController.SendDisappearing();
 		}
 
 		protected override void OnElementChanged(ElementChangedEventArgs<TabbedPage> e)
@@ -69,7 +71,7 @@ namespace Xamarin.Forms.Platform.Android
 			if (Platform.GetRenderer(view) == null)
 				Platform.SetRenderer(view, Platform.CreateRenderer(view));
 
-			AddView(Platform.GetRenderer(view).ViewGroup);
+			AddView(Platform.GetRenderer(view).View);
 		}
 	}
 }

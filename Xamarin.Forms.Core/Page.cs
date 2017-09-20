@@ -2,21 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Xamarin.Forms.Internals;
 using Xamarin.Forms.Platform;
 
 namespace Xamarin.Forms
 {
 	[RenderWith(typeof(_PageRenderer))]
-	public class Page : VisualElement, ILayout
+	public class Page : VisualElement, ILayout, IPageController, IElementConfiguration<Page>
 	{
-		internal const string BusySetSignalName = "Xamarin.BusySet";
+		public const string BusySetSignalName = "Xamarin.BusySet";
 
-		internal const string AlertSignalName = "Xamarin.SendAlert";
+		public const string AlertSignalName = "Xamarin.SendAlert";
 
-		internal const string ActionSheetSignalName = "Xamarin.ShowActionSheet";
+		public const string ActionSheetSignalName = "Xamarin.ShowActionSheet";
 
 		internal static readonly BindableProperty IgnoresContainerAreaProperty = BindableProperty.Create("IgnoresContainerArea", typeof(bool), typeof(Page), false);
 
@@ -34,6 +36,8 @@ namespace Xamarin.Forms
 
 		public static readonly BindableProperty IconProperty = BindableProperty.Create("Icon", typeof(FileImageSource), typeof(Page), default(FileImageSource));
 
+		readonly Lazy<PlatformConfigurationRegistry<Page>> _platformConfigurationRegistry;
+
 		bool _allocatedFlag;
 		Rectangle _containerArea;
 
@@ -49,6 +53,7 @@ namespace Xamarin.Forms
 			toolbarItems.CollectionChanged += OnToolbarItemsCollectionChanged;
 			ToolbarItems = toolbarItems;
 			InternalChildren.CollectionChanged += InternalChildrenOnCollectionChanged;
+			_platformConfigurationRegistry = new Lazy<PlatformConfigurationRegistry<Page>>(() => new PlatformConfigurationRegistry<Page>(this));
 		}
 
 		public string BackgroundImage
@@ -83,7 +88,8 @@ namespace Xamarin.Forms
 
 		public IList<ToolbarItem> ToolbarItems { get; internal set; }
 
-		internal Rectangle ContainerArea
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public Rectangle ContainerArea
 		{
 			get { return _containerArea; }
 			set
@@ -96,18 +102,18 @@ namespace Xamarin.Forms
 			}
 		}
 
-		internal bool IgnoresContainerArea
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public bool IgnoresContainerArea
 		{
 			get { return (bool)GetValue(IgnoresContainerAreaProperty); }
 			set { SetValue(IgnoresContainerAreaProperty, value); }
 		}
 
-		internal ObservableCollection<Element> InternalChildren { get; } = new ObservableCollection<Element>();
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public ObservableCollection<Element> InternalChildren { get; } = new ObservableCollection<Element>();
 
-		internal override ReadOnlyCollection<Element> LogicalChildren
-		{
-			get { return _logicalChildren ?? (_logicalChildren = new ReadOnlyCollection<Element>(InternalChildren)); }
-		}
+		internal override ReadOnlyCollection<Element> LogicalChildrenInternal => 
+			_logicalChildren ?? (_logicalChildren = new ReadOnlyCollection<Element>(InternalChildren));
 
 		public event EventHandler LayoutChanged;
 
@@ -162,20 +168,17 @@ namespace Xamarin.Forms
 				area.Height = Math.Max(0, area.Height);
 			}
 
-			foreach (Element element in LogicalChildren)
+			List<Element> elements = LogicalChildren.ToList();
+			foreach (Element element in elements)
 			{
 				var child = element as VisualElement;
 				if (child == null)
 					continue;
 				var page = child as Page;
 				if (page != null && page.IgnoresContainerArea)
-				{
 					Forms.Layout.LayoutChildIntoBoundingRegion(child, originalArea);
-				}
 				else
-				{
 					Forms.Layout.LayoutChildIntoBoundingRegion(child, area);
-				}
 			}
 		}
 
@@ -283,14 +286,15 @@ namespace Xamarin.Forms
 			}
 
 			_allocatedFlag = false;
-			InvalidateMeasure(InvalidationTrigger.MeasureChanged);
+			InvalidateMeasureInternal(InvalidationTrigger.MeasureChanged);
 			if (!_allocatedFlag && Width >= 0 && Height >= 0)
 			{
 				SizeAllocated(Width, Height);
 			}
 		}
 
-		internal void SendAppearing()
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public void SendAppearing()
 		{
 			if (_hasAppeared)
 				return;
@@ -309,7 +313,8 @@ namespace Xamarin.Forms
 			pageContainer?.CurrentPage?.SendAppearing();
 		}
 
-		internal void SendDisappearing()
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public void SendDisappearing()
 		{
 			if (!_hasAppeared)
 				return;
@@ -348,7 +353,7 @@ namespace Xamarin.Forms
 			view.MeasureInvalidated += OnChildMeasureInvalidated;
 
 			OnChildAdded(view);
-			InvalidateMeasure(InvalidationTrigger.MeasureChanged);
+			InvalidateMeasureInternal(InvalidationTrigger.MeasureChanged);
 		}
 
 		void OnInternalRemoved(VisualElement view)
@@ -380,7 +385,7 @@ namespace Xamarin.Forms
 				return false;
 
 			var container = this as IPageContainer<Page>;
-			if (container != null && container.CurrentPage != null)
+			if (container?.CurrentPage != null)
 			{
 				if (InternalChildren.Contains(container.CurrentPage))
 					return container.CurrentPage.IsPlatformEnabled && container.CurrentPage.IsNativeStateConsistent;
@@ -398,6 +403,11 @@ namespace Xamarin.Forms
 				}
 			}
 			return !any;
+		}
+
+		public IPlatformElementConfiguration<T, Page> On<T>() where T : IConfigPlatform
+		{
+			return _platformConfigurationRegistry.Value.On<T>();
 		}
 	}
 }

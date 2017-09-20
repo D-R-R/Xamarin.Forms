@@ -9,7 +9,7 @@ using NUnit.Framework;
 #endif
 
 
-namespace Xamarin.Forms.Controls
+namespace Xamarin.Forms.Controls.Issues
 {
 	[Preserve (AllMembers = true)]
 	[Issue (IssueTracker.Bugzilla, 37462, "Using App Compat/App Compat theme breaks Navigation.RemovePage on Android ",PlatformAffected.Android )]
@@ -22,7 +22,7 @@ namespace Xamarin.Forms.Controls
 			var label1 = new Label { Text = "This is a label on page 1" };
 			page1.Content = new StackLayout { Children = { button1, label1 } };
 			page1.Appearing += (sender, args) => {
-				page1.InvalidateMeasure (InvalidationTrigger.MeasureChanged);
+				((IVisualElementController)page1).InvalidateMeasure(InvalidationTrigger.MeasureChanged);
 			};
 
 			var page2 = new ContentPage { Title = "Page 2" };

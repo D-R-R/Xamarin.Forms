@@ -1,8 +1,11 @@
 ﻿using System.Collections;
+using System.ComponentModel;
+using Xamarin.Forms.Internals;
 
 namespace Xamarin.Forms
 {
-	public abstract class ItemsView<TVisual> : View, IItemsView<TVisual> where TVisual : BindableObject
+
+	public abstract class ItemsView<TVisual> : View, ITemplatedItemsView<TVisual> where TVisual : BindableObject
 	{
 		/*
 		public static readonly BindableProperty InfiniteScrollingProperty =
@@ -40,12 +43,15 @@ namespace Xamarin.Forms
 			this.templatedItems.ForceUpdate();
 		}*/
 
-		internal ListProxy ListProxy
+		IListProxy ITemplatedItemsView<TVisual>.ListProxy
 		{
 			get { return TemplatedItems.ListProxy; }
 		}
 
-		internal TemplatedItemsList<ItemsView<TVisual>, TVisual> TemplatedItems { get; }
+		ITemplatedItemsList<TVisual> ITemplatedItemsView<TVisual>.TemplatedItems { get { return TemplatedItems; } }
+
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public TemplatedItemsList<ItemsView<TVisual>, TVisual> TemplatedItems { get; }
 
 		TVisual IItemsView<TVisual>.CreateDefault(object item)
 		{
@@ -80,13 +86,18 @@ namespace Xamarin.Forms
 			element.Parent = (Element)bindable;
 		}
 
-		static bool ValidateItemTemplate(BindableObject b, object v)
+		static bool ValidateItemTemplate(BindableObject bindable, object value)
 		{
-			var lv = b as ListView;
-			if (lv == null)
+			var listView = bindable as ListView;
+			if (listView == null)
 				return true;
 
-			return !(lv.CachingStrategy == ListViewCachingStrategy.RetainElement && lv.ItemTemplate is DataTemplateSelector);
+			var isRetainStrategy = listView.CachingStrategy == ListViewCachingStrategy.RetainElement;
+			var isDataTemplateSelector = listView.ItemTemplate is DataTemplateSelector;
+			if (isRetainStrategy && isDataTemplateSelector)
+				return false;
+
+			return true;
 		}
 	}
 }

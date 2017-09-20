@@ -50,6 +50,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AbsoluteLayoutFlags.cs" />
+    <Compile Include="AutomationProperties.cs" />
     <Compile Include="ActionSheetArguments.cs" />
     <Compile Include="AlertArguments.cs" />
     <Compile Include="AnimatableKey.cs" />
@@ -64,6 +65,8 @@
     <Compile Include="BoundsTypeConverter.cs" />
     <Compile Include="CastingEnumerator.cs" />
     <Compile Include="Cells\EntryCell.cs" />
+    <Compile Include="Cells\ICellController.cs" />
+    <Compile Include="Cells\IEntryCellController.cs" />
     <Compile Include="Cells\ImageCell.cs" />
     <Compile Include="Cells\INativeElementView.cs" />
     <Compile Include="ChatKeyboard.cs" />
@@ -84,6 +87,38 @@
     <Compile Include="DataTemplateSelector.cs" />
     <Compile Include="DateChangedEventArgs.cs" />
     <Compile Include="DelegateLogListener.cs" />
+    <Compile Include="IEditorController.cs" />
+    <Compile Include="IGridController.cs" />
+    <Compile Include="IWebViewController.cs" />
+    <Compile Include="INavigationMenuController.cs" />
+    <Compile Include="Internals\EffectUtilities.cs" />
+    <Compile Include="EnumerableExtensions.cs" />
+    <Compile Include="IMultiPageController.cs" />
+    <Compile Include="LockableObservableListWrapper.cs" />
+    <Compile Include="PlatformConfiguration\AndroidSpecific\AppCompat\Application.cs" />
+    <Compile Include="PlatformConfiguration\AndroidSpecific\Application.cs" />
+    <Compile Include="PlatformConfiguration\AndroidSpecific\TabbedPage.cs" />
+    <Compile Include="PlatformConfiguration\ExtensionPoints.cs" />
+    <Compile Include="PlatformConfiguration\iOSSpecific\BlurEffectStyle.cs" />
+    <Compile Include="PlatformConfiguration\iOSSpecific\Entry.cs" />
+    <Compile Include="PlatformConfiguration\iOSSpecific\NavigationPage.cs" />
+    <Compile Include="PlatformConfiguration\iOSSpecific\ScrollView.cs" />
+    <Compile Include="PlatformConfiguration\iOSSpecific\Picker.cs" />
+    <Compile Include="PlatformConfiguration\iOSSpecific\StatusBarTextColorMode.cs" />
+    <Compile Include="PlatformConfiguration\iOSSpecific\Page.cs" />
+    <Compile Include="PlatformConfiguration\iOSSpecific\StatusBarHiddenMode.cs" />
+    <Compile Include="PlatformConfiguration\iOSSpecific\UIStatusBarAnimation.cs" />
+    <Compile Include="PlatformConfiguration\iOSSpecific\UpdateMode.cs" />
+    <Compile Include="PlatformConfiguration\iOSSpecific\VisualElement.cs" />
+    <Compile Include="PlatformConfiguration\WindowsSpecific\MasterDetailPage.cs" />
+    <Compile Include="PlatformConfiguration\WindowsSpecific\CollapseStyle.cs" />
+    <Compile Include="Configuration.cs" />
+    <Compile Include="IConfigElement.cs" />
+    <Compile Include="IConfigPlatform.cs" />
+    <Compile Include="IElementConfiguration.cs" />
+    <Compile Include="IPlatformElementConfiguration.cs" />
+    <Compile Include="PlatformConfigurationRegistry.cs" />
+    <Compile Include="IFontElement.cs" />
     <Compile Include="DependencyAttribute.cs" />
     <Compile Include="DependencyFetchTarget.cs" />
     <Compile Include="DeviceOrientation.cs" />
@@ -92,7 +127,12 @@
     <Compile Include="ElementEventArgs.cs" />
     <Compile Include="ElementTemplate.cs" />
     <Compile Include="EmailKeyboard.cs" />
+    <Compile Include="IListProxy.cs" />
+    <Compile Include="IMenuItemController.cs" />
     <Compile Include="IEntryController.cs" />
+    <Compile Include="IImageController.cs" />
+    <Compile Include="INavigationPageController.cs" />
+    <Compile Include="IMasterDetailPageController.cs" />
     <Compile Include="Internals\EvalRequested.cs" />
     <Compile Include="ExportEffectAttribute.cs" />
     <Compile Include="ExpressionSearch.cs" />
@@ -116,7 +156,6 @@
     <Compile Include="IElementController.cs" />
     <Compile Include="IExpressionSearch.cs" />
     <Compile Include="IExtendedTypeConverter.cs" />
-    <Compile Include="IFontElement.cs" />
     <Compile Include="IGestureRecognizer.cs" />
     <Compile Include="IItemsView.cs" />
     <Compile Include="IItemViewController.cs" />
@@ -125,11 +164,13 @@
     <Compile Include="ImageSourceConverter.cs" />
     <Compile Include="INavigation.cs" />
     <Compile Include="InvalidationEventArgs.cs" />
-    <Compile Include="InvalidationTrigger.cs" />
+    <Compile Include="Internals\InvalidationTrigger.cs" />
     <Compile Include="InvalidNavigationException.cs" />
     <Compile Include="IOpenGlViewController.cs" />
+    <Compile Include="IPageController.cs" />
     <Compile Include="IPanGestureController.cs" />
     <Compile Include="IPinchGestureController.cs" />
+    <Compile Include="IPlatform.cs" />
     <Compile Include="IProvideParentValues.cs" />
     <Compile Include="IProvideValueTarget.cs" />
     <Compile Include="IRegisterable.cs" />
@@ -137,6 +178,13 @@
     <Compile Include="IResourcesProvider.cs" />
     <Compile Include="IRootObjectProvider.cs" />
     <Compile Include="IScrollViewController.cs" />
+    <Compile Include="ITableModel.cs" />
+    <Compile Include="ITableViewController.cs" />
+    <Compile Include="ITemplatedItemsList.cs" />
+    <Compile Include="ITemplatedItemsListScrollToRequestedEventArgs.cs" />
+    <Compile Include="ITemplatedItemsView.cs" />
+    <Compile Include="ISearchBarController.cs" />
+    <Compile Include="IStreamImageSource.cs" />
     <Compile Include="ItemTappedEventArgs.cs" />
     <Compile Include="ItemVisibilityEventArgs.cs" />
     <Compile Include="IValueConverterProvider.cs" />
@@ -167,9 +215,9 @@
     <Compile Include="ModalPushingEventArgs.cs" />
     <Compile Include="NavigationEventArgs.cs" />
     <Compile Include="NavigationModel.cs" />
-    <Compile Include="NavigationRequestedEventArgs.cs" />
-    <Compile Include="NotifyCollectionChangedEventArgsEx.cs" />
-    <Compile Include="NotifyCollectionChangedEventArgsExtensions.cs" />
+    <Compile Include="Internals\NavigationRequestedEventArgs.cs" />
+    <Compile Include="Internals\NotifyCollectionChangedEventArgsEx.cs" />
+    <Compile Include="Internals\NotifyCollectionChangedEventArgsExtensions.cs" />
     <Compile Include="NullEffect.cs" />
     <Compile Include="NumericKeyboard.cs" />
     <Compile Include="ObservableList.cs" />
@@ -178,6 +226,8 @@
     <Compile Include="PanUpdatedEventArgs.cs" />
     <Compile Include="Performance.cs" />
     <Compile Include="PinchGestureUpdatedEventArgs.cs" />
+    <Compile Include="PlatformConfiguration\WindowsSpecific\Page.cs" />
+    <Compile Include="PlatformConfiguration\WindowsSpecific\ToolbarPlacement.cs" />
     <Compile Include="PlatformEffect.cs" />
     <Compile Include="PointTypeConverter.cs" />
     <Compile Include="Internals\PreserveAttribute.cs" />
@@ -192,11 +242,11 @@
     <Compile Include="Properties\GlobalAssemblyInfo.cs" />
     <Compile Include="PropertyChangingEventArgs.cs" />
     <Compile Include="IValueConverter.cs" />
-    <Compile Include="ConcurrentDictionary.cs" />
     <Compile Include="PropertyChangingEventHandler.cs" />
     <Compile Include="ReadOnlyCastingList.cs" />
     <Compile Include="ReadOnlyListAdapter.cs" />
     <Compile Include="RectangleTypeConverter.cs" />
+    <Compile Include="Registrar.cs" />
     <Compile Include="RenderWithAttribute.cs" />
     <Compile Include="ResolutionGroupNameAttribute.cs" />
     <Compile Include="ResourcesChangedEventArgs.cs" />
@@ -213,7 +263,6 @@
     <Compile Include="SeparatorVisibility.cs" />
     <Compile Include="SizeRequest.cs" />
     <Compile Include="Span.cs" />
-    <Compile Include="SplitOrderedList.cs" />
     <Compile Include="StackOrientation.cs" />
     <Compile Include="StreamWrapper.cs" />
     <Compile Include="SynchronizedList.cs" />
@@ -224,6 +273,7 @@
     <Compile Include="TelephoneKeyboard.cs" />
     <Compile Include="TemplateBinding.cs" />
     <Compile Include="TemplatedItemsList.cs" />
+    <Compile Include="Internals\CellExtensions.cs" />
     <Compile Include="TemplatedPage.cs" />
     <Compile Include="TemplatedView.cs" />
     <Compile Include="TemplateUtilities.cs" />
@@ -259,8 +309,6 @@
     <Compile Include="Color.cs" />
     <Compile Include="ResourceDictionary.cs" />
     <Compile Include="EventArg.cs" />
-    <Compile Include="IPlatform.cs" />
-    <Compile Include="EnumerableExtensions.cs" />
     <Compile Include="Size.cs" />
     <Compile Include="GestureState.cs" />
     <Compile Include="Point.cs" />
@@ -280,7 +328,6 @@
     <Compile Include="DataTemplate.cs" />
     <Compile Include="ListProxy.cs" />
     <Compile Include="AbsoluteLayout.cs" />
-    <Compile Include="Registrar.cs" />
     <Compile Include="ActivityIndicator.cs" />
     <Compile Include="BoxView.cs" />
     <Compile Include="Button.cs" />
@@ -312,9 +359,10 @@
     <Compile Include="TabbedPage.cs" />
     <Compile Include="TemplateExtensions.cs" />
     <Compile Include="TimePicker.cs" />
-    <Compile Include="ToolbarTracker.cs" />
+    <Compile Include="Internals\ToolbarTracker.cs" />
     <Compile Include="ViewExtensions.cs" />
     <Compile Include="ViewState.cs" />
+    <Compile Include="WeakEventManager.cs" />
     <Compile Include="WeakReferenceExtensions.cs" />
     <Compile Include="WebNavigatedEventArgs.cs" />
     <Compile Include="WebNavigatingEventArgs.cs" />
@@ -327,7 +375,6 @@
     <Compile Include="Tweener.cs" />
     <Compile Include="IPlatformServices.cs" />
     <Compile Include="UriTypeConverter.cs" />
-    <Compile Include="ITimer.cs" />
     <Compile Include="IIsolatedStorageFile.cs" />
     <Compile Include="Grid.cs" />
     <Compile Include="GridCalc.cs" />
@@ -399,6 +446,24 @@
     <Compile Include="IApplicationController.cs" />
     <Compile Include="IAppIndexingProvider.cs" />
     <Compile Include="ListStringTypeConverter.cs" />
+    <Compile Include="PoppedToRootEventArgs.cs" />
+    <Compile Include="NativeBindingHelpers.cs" />
+    <Compile Include="INativeValueConverterService.cs" />
+    <Compile Include="INativeBindingService.cs" />
+    <Compile Include="ProvideCompiledAttribute.cs" />
+    <Compile Include="TypedBinding.cs" />
+    <Compile Include="XmlnsDefinitionAttribute.cs" />
+    <Compile Include="PlatformConfiguration\macOSSpecific\TabbedPage.cs" />
+    <Compile Include="PlatformConfiguration\macOSSpecific\TabsStyle.cs" />
+    <Compile Include="FontElement.cs" />
+    <Compile Include="PlatformConfiguration\AndroidSpecific\ListView.cs" />
+    <Compile Include="ITextElement.cs" />
+    <Compile Include="TextElement.cs" />
+    <Compile Include="Internals\ResourceLoader.cs" />
+    <Compile Include="Xaml\TypeConversionExtensions.cs" />
+    <Compile Include="Xaml\ValueConverterProvider.cs" />
+    <Compile Include="PlatformConfiguration\macOSSpecific\Page.cs" />
+    <Compile Include="CompressedLayout.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <ItemGroup>
@@ -413,4 +478,8 @@
     </PostBuildEvent>
   </PropertyGroup>
   <ItemGroup />
+  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="Xaml\" />
+  </ItemGroup>
 </Project>

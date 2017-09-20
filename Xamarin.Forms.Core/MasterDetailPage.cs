@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using Xamarin.Forms.Internals;
 using Xamarin.Forms.Platform;
 
 namespace Xamarin.Forms
 {
 	[RenderWith(typeof(_MasterDetailPageRenderer))]
-	public class MasterDetailPage : Page
+	public class MasterDetailPage : Page, IMasterDetailPageController, IElementConfiguration<MasterDetailPage>
 	{
 		public static readonly BindableProperty IsGestureEnabledProperty = BindableProperty.Create("IsGestureEnabled", typeof(bool), typeof(MasterDetailPage), true);
 
@@ -89,9 +92,11 @@ namespace Xamarin.Forms
 			set { SetValue(MasterBehaviorProperty, value); }
 		}
 
-		internal bool CanChangeIsPresented { get; set; } = true;
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public bool CanChangeIsPresented { get; set; } = true;
 
-		internal Rectangle DetailBounds
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public Rectangle DetailBounds
 		{
 			get { return _detailBounds; }
 			set
@@ -103,7 +108,8 @@ namespace Xamarin.Forms
 			}
 		}
 
-		internal Rectangle MasterBounds
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public Rectangle MasterBounds
 		{
 			get { return _masterBounds; }
 			set
@@ -115,7 +121,8 @@ namespace Xamarin.Forms
 			}
 		}
 
-		internal bool ShouldShowSplitMode
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public bool ShouldShowSplitMode
 		{
 			get
 			{
@@ -193,7 +200,14 @@ namespace Xamarin.Forms
 			base.OnParentSet();
 		}
 
-		internal event EventHandler<BackButtonPressedEventArgs> BackButtonPressed;
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public event EventHandler<BackButtonPressedEventArgs> BackButtonPressed;
+
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void UpdateMasterBehavior()
+		{
+			UpdateMasterBehavior(this);
+		}
 
 		internal static void UpdateMasterBehavior(MasterDetailPage page)
 		{
@@ -224,6 +238,18 @@ namespace Xamarin.Forms
 		{
 			var page = (MasterDetailPage)sender;
 			UpdateMasterBehavior(page);
+		}
+
+		public MasterDetailPage()
+		{
+			_platformConfigurationRegistry = new Lazy<PlatformConfigurationRegistry<MasterDetailPage>>(() => new PlatformConfigurationRegistry<MasterDetailPage>(this));
+		}
+
+		readonly Lazy<PlatformConfigurationRegistry<MasterDetailPage>> _platformConfigurationRegistry;
+
+		public new IPlatformElementConfiguration<T, MasterDetailPage> On<T>() where T : IConfigPlatform
+		{
+			return _platformConfigurationRegistry.Value.On<T>();
 		}
 	}
 }

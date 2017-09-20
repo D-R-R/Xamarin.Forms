@@ -1,18 +1,13 @@
-﻿using System.Collections.Generic;
-#if __UNIFIED__
-using CoreGraphics;
+﻿using CoreGraphics;
+using Xamarin.Forms.Internals;
+#if __MOBILE__
 using UIKit;
-
-#else
-using MonoTouch.UIKit;
-#endif
-
-#if !__UNIFIED__
-	// Save ourselves a ton of ugly ifdefs below
-using CGSize = System.Drawing.SizeF;
-#endif
-
 namespace Xamarin.Forms.Platform.iOS
+#else
+using UIView = AppKit.NSView;
+
+namespace Xamarin.Forms.Platform.MacOS
+#endif
 {
 	public class NativeViewWrapperRenderer : ViewRenderer<NativeViewWrapper, UIView>
 	{
@@ -29,11 +24,12 @@ namespace Xamarin.Forms.Platform.iOS
 			return result ?? base.GetDesiredSize(widthConstraint, heightConstraint);
 		}
 
+#if __MOBILE__
 		public override void LayoutSubviews()
 		{
 			if (Element?.LayoutSubViews == null)
 			{
-				Element?.InvalidateMeasure(InvalidationTrigger.MeasureChanged);
+				((IVisualElementController)Element)?.InvalidateMeasure(InvalidationTrigger.MeasureChanged);
 				base.LayoutSubviews();
 				return;
 			}
@@ -60,6 +56,26 @@ namespace Xamarin.Forms.Platform.iOS
 			// if it returns null, fall back to the default implementation
 			return result ?? base.SizeThatFits(size);
 		}
+#else
+		public override void Layout()
+		{
+			if (Element?.LayoutSubViews == null)
+			{
+				((IVisualElementController)Element)?.InvalidateMeasure(InvalidationTrigger.MeasureChanged);
+				base.Layout();
+				return;
+			}
+
+			// The user has specified a different implementation of LayoutSubviews
+			var handled = Element.LayoutSubViews();
+
+			if (!handled)
+			{
+				// If the delegate wasn't able to handle the request, fall back to the default implementation
+				base.Layout();
+			}
+		}
+#endif
 
 		protected override void OnElementChanged(ElementChangedEventArgs<NativeViewWrapper> e)
 		{

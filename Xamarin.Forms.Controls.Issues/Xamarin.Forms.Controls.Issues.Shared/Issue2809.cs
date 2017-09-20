@@ -8,7 +8,7 @@ using Xamarin.UITest;
 using Xamarin.UITest.Android;
 #endif
 
-namespace Xamarin.Forms.Controls
+namespace Xamarin.Forms.Controls.Issues
 {
 	[Preserve (AllMembers=true)]
 	[Issue (IssueTracker.Github, 2809, "Secondary ToolbarItems cause app to hang during PushAsync", PlatformAffected.iOS)]
@@ -38,14 +38,14 @@ namespace Xamarin.Forms.Controls
 
 		void ShouldShowMenu ()
 		{
-			if (RunningApp is AndroidApp) {
-				//show secondary menu
-				RunningApp.Tap (c => c.Class ("android.support.v7.widget.ActionMenuPresenter$OverflowMenuButton"));
-			}
+#if __ANDROID__
+			//show secondary menu
+			RunningApp.Tap (c => c.Class ("OverflowMenuButton"));
+#endif
 		}
 
 #endif
 
-	}
+		}
 }
 

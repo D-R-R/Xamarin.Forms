@@ -21,7 +21,7 @@ namespace Xamarin.Forms
 
 		List<Action<object, ResourcesChangedEventArgs>> _changeHandlers;
 
-		List<KeyValuePair<string, BindableProperty>> _dynamicResources;
+		Dictionary<BindableProperty, string> _dynamicResources;
 
 		IEffectControlProvider _effectControlProvider;
 
@@ -76,7 +76,7 @@ namespace Xamarin.Forms
 			}
 		}
 
-		[Obsolete("Use Parent")]
+		[Obsolete("ParentView is obsolete as of version 2.1.0. Please use Parent instead.")]
 		public VisualElement ParentView
 		{
 			get
@@ -107,10 +107,10 @@ namespace Xamarin.Forms
 			}
 		}
 
-		internal virtual ReadOnlyCollection<Element> LogicalChildren
-		{
-			get { return EmptyChildren; }
-		}
+		internal virtual ReadOnlyCollection<Element> LogicalChildrenInternal => EmptyChildren;
+
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public ReadOnlyCollection<Element> LogicalChildren => LogicalChildrenInternal;
 
 		internal bool Owned { get; set; }
 
@@ -134,7 +134,8 @@ namespace Xamarin.Forms
 			}
 		}
 
-		internal IPlatform Platform
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public IPlatform Platform
 		{
 			get
 			{
@@ -159,11 +160,12 @@ namespace Xamarin.Forms
 		}
 
 		// you're not my real dad
-		internal Element RealParent { get; private set; }
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public Element RealParent { get; private set; }
 
-		List<KeyValuePair<string, BindableProperty>> DynamicResources
+		Dictionary<BindableProperty, string> DynamicResources
 		{
-			get { return _dynamicResources ?? (_dynamicResources = new List<KeyValuePair<string, BindableProperty>>(4)); }
+			get { return _dynamicResources ?? (_dynamicResources = new Dictionary<BindableProperty, string>()); }
 		}
 
 		void IElement.AddResourcesChangedListener(Action<object, ResourcesChangedEventArgs> onchanged)
@@ -221,7 +223,8 @@ namespace Xamarin.Forms
 			_changeHandlers.Remove(onchanged);
 		}
 
-		IEffectControlProvider IElementController.EffectControlProvider
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public IEffectControlProvider EffectControlProvider
 		{
 			get { return _effectControlProvider; }
 			set
@@ -245,14 +248,28 @@ namespace Xamarin.Forms
 			}
 		}
 
-		void IElementController.SetValueFromRenderer(BindableProperty property, object value)
+		void IElementController.SetValueFromRenderer(BindableProperty property, object value) => SetValueFromRenderer(property, value);
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void SetValueFromRenderer(BindableProperty property, object value)
 		{
 			SetValueCore(property, value);
 		}
 
-		void IElementController.SetValueFromRenderer(BindablePropertyKey property, object value)
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void SetValueFromRenderer(BindablePropertyKey property, object value)
 		{
 			SetValueCore(property, value);
+		}
+
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public bool EffectIsAttached(string name)
+		{
+			foreach (var effect in Effects)
+			{
+				if (effect.ResolveId == name)
+					return true;
+			}
+			return false;
 		}
 
 		object INameScope.FindByName(string name)
@@ -271,6 +288,7 @@ namespace Xamarin.Forms
 			namescope.RegisterName(name, scopedElement);
 		}
 
+		[Obsolete]
 		void INameScope.RegisterName(string name, object scopedElement, IXmlLineInfo xmlLineInfo)
 		{
 			INameScope namescope = GetNameScope();
@@ -310,9 +328,9 @@ namespace Xamarin.Forms
 			var gotBindingContext = false;
 			object bc = null;
 
-			for (var index = 0; index < LogicalChildren.Count; index++)
+			for (var index = 0; index < LogicalChildrenInternal.Count; index++)
 			{
-				Element child = LogicalChildren[index];
+				Element child = LogicalChildrenInternal[index];
 
 				if (!gotBindingContext)
 				{
@@ -379,14 +397,15 @@ namespace Xamarin.Forms
 			}
 		}
 
-		internal IEnumerable<Element> Descendants()
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public IEnumerable<Element> Descendants()
 		{
 			var queue = new Queue<Element>(16);
 			queue.Enqueue(this);
 
 			while (queue.Count > 0)
 			{
-				ReadOnlyCollection<Element> children = queue.Dequeue().LogicalChildren;
+				ReadOnlyCollection<Element> children = queue.Dequeue().LogicalChildrenInternal;
 				for (var i = 0; i < children.Count; i++)
 				{
 					Element child = children[i];
@@ -408,7 +427,8 @@ namespace Xamarin.Forms
 
 		internal override void OnRemoveDynamicResource(BindableProperty property)
 		{
-			DynamicResources.RemoveAll(kvp => kvp.Value == property);
+			DynamicResources.Remove(property);
+
 			if (DynamicResources.Count == 0)
 				_dynamicResources = null;
 			base.OnRemoveDynamicResource(property);
@@ -433,12 +453,16 @@ namespace Xamarin.Forms
 			foreach (KeyValuePair<string, object> value in values)
 			{
 				List<BindableProperty> changedResources = null;
-				foreach (KeyValuePair<string, BindableProperty> dynR in DynamicResources)
+				foreach (KeyValuePair<BindableProperty, string> dynR in DynamicResources)
 				{
-					if (dynR.Key != value.Key)
+					// when the DynamicResource bound to a BindableProperty is
+					// changing then the BindableProperty needs to be refreshed;
+					// The .Value is the name of DynamicResouce to which the BindableProperty is bound.
+					// The .Key is the name of the DynamicResource whose value is changing.
+					if (dynR.Value != value.Key)
 						continue;
 					changedResources = changedResources ?? new List<BindableProperty>();
-					changedResources.Add(dynR.Value);
+					changedResources.Add(dynR.Key);
 				}
 				if (changedResources == null)
 					continue;
@@ -458,7 +482,7 @@ namespace Xamarin.Forms
 		internal override void OnSetDynamicResource(BindableProperty property, string key)
 		{
 			base.OnSetDynamicResource(property, key);
-			DynamicResources.Add(new KeyValuePair<string, BindableProperty>(key, property));
+			DynamicResources[property] = key;
 			object value;
 			if (this.TryGetResource(key, out value))
 				OnResourceChanged(property, value);
@@ -466,7 +490,8 @@ namespace Xamarin.Forms
 
 		internal event EventHandler ParentSet;
 
-		internal event EventHandler PlatformSet;
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public event EventHandler PlatformSet;
 
 		internal virtual void SetChildInheritedBindingContext(Element child, object context)
 		{
@@ -480,7 +505,7 @@ namespace Xamarin.Forms
 
 			while (queue.Count > 0)
 			{
-				ReadOnlyCollection<Element> children = queue.Dequeue().LogicalChildren;
+				ReadOnlyCollection<Element> children = queue.Dequeue().LogicalChildrenInternal;
 				for (var i = 0; i < children.Count; i++)
 				{
 					var child = children[i] as VisualElement;
@@ -511,7 +536,7 @@ namespace Xamarin.Forms
 		{
 			foreach (Effect effect in _effects)
 			{
-				effect.ClearEffect();
+				effect?.ClearEffect();
 			}
 		}
 

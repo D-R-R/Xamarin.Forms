@@ -1,6 +1,6 @@
 <Type Name="ScrollView" FullName="Xamarin.Forms.ScrollView">
-  <TypeSignature Language="C#" Value="public class ScrollView : Xamarin.Forms.Layout, Xamarin.Forms.IScrollViewController" />
-  <TypeSignature Language="ILAsm" Value=".class public auto ansi beforefieldinit ScrollView extends Xamarin.Forms.Layout implements class Xamarin.Forms.ILayoutController, class Xamarin.Forms.IScrollViewController" />
+  <TypeSignature Language="C#" Value="public class ScrollView : Xamarin.Forms.Layout, Xamarin.Forms.IElementConfiguration&lt;Xamarin.Forms.ScrollView&gt;, Xamarin.Forms.IScrollViewController" />
+  <TypeSignature Language="ILAsm" Value=".class public auto ansi beforefieldinit ScrollView extends Xamarin.Forms.Layout implements class Xamarin.Forms.IElementConfiguration`1&lt;class Xamarin.Forms.ScrollView&gt;, class Xamarin.Forms.ILayoutController, class Xamarin.Forms.IScrollViewController" />
   <AssemblyInfo>
     <AssemblyName>Xamarin.Forms.Core</AssemblyName>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
@@ -16,6 +16,9 @@
     <BaseTypeName>Xamarin.Forms.Layout</BaseTypeName>
   </Base>
   <Interfaces>
+    <Interface>
+      <InterfaceName>Xamarin.Forms.IElementConfiguration&lt;Xamarin.Forms.ScrollView&gt;</InterfaceName>
+    </Interface>
     <Interface>
       <InterfaceName>Xamarin.Forms.IScrollViewController</InterfaceName>
     </Interface>
@@ -34,16 +37,17 @@
       <para>  The following example shows the creation of a ScrollView with a large <see cref="T:Xamarin.Forms.StackLayout" /> in it.</para>
       <example>
         <code lang="C#"><![CDATA[
-StackLayout stack;
-var scrollview = new ScrollView {
-  Content = new StackLayout {
-    Padding = new Thickness (20),
-  },
-};
+var stack = new StackLayout();
 
-for (var i=0; i<100; i++)
-  stack.Children.Add (new Button { Text = "Foo"});
-              ]]></code>
+for (int i = 0; i < 100; i++)
+{
+    stack.Children.Add(new Button { Text = "Button " + i });
+}
+
+MainPage = new ContentPage
+{
+    Content = new ScrollView { Content = stack }
+};]]></code>
       </example>
       <block type="note">Application developers should not nest one <see cref="T:Xamarin.Forms.ScrollView" /> within another. Additionally, they should refrain from nesting them  other elements that can scroll, such as <see cref="T:Xamarin.Forms.WebView" />.</block>
       <para>
@@ -163,6 +167,33 @@ for (var i=0; i<100; i++)
         <remarks>This bindable property is read-only.</remarks>
       </Docs>
     </Member>
+    <Member MemberName="GetScrollPositionForElement">
+      <MemberSignature Language="C#" Value="public Xamarin.Forms.Point GetScrollPositionForElement (Xamarin.Forms.VisualElement item, Xamarin.Forms.ScrollToPosition pos);" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig newslot virtual instance valuetype Xamarin.Forms.Point GetScrollPositionForElement(class Xamarin.Forms.VisualElement item, valuetype Xamarin.Forms.ScrollToPosition pos) cil managed" />
+      <MemberType>Method</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>2.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <Attributes>
+        <Attribute>
+          <AttributeName>System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)</AttributeName>
+        </Attribute>
+      </Attributes>
+      <ReturnValue>
+        <ReturnType>Xamarin.Forms.Point</ReturnType>
+      </ReturnValue>
+      <Parameters>
+        <Parameter Name="item" Type="Xamarin.Forms.VisualElement" />
+        <Parameter Name="pos" Type="Xamarin.Forms.ScrollToPosition" />
+      </Parameters>
+      <Docs>
+        <param name="item">For internal use by the Xamarin.Forms platform.</param>
+        <param name="pos">For internal use by the Xamarin.Forms platform.</param>
+        <summary>For internal use by the Xamarin.Forms platform.</summary>
+        <returns>To be added.</returns>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Member>
     <Member MemberName="LayoutChildren">
       <MemberSignature Language="C#" Value="protected override void LayoutChildren (double x, double y, double width, double height);" />
       <MemberSignature Language="ILAsm" Value=".method familyhidebysig virtual instance void LayoutChildren(float64 x, float64 y, float64 width, float64 height) cil managed" />
@@ -196,6 +227,31 @@ for (var i=0; i<100; i++)
         </remarks>
       </Docs>
     </Member>
+    <Member MemberName="On&lt;T&gt;">
+      <MemberSignature Language="C#" Value="public Xamarin.Forms.IPlatformElementConfiguration&lt;T,Xamarin.Forms.ScrollView&gt; On&lt;T&gt; () where T : Xamarin.Forms.IConfigPlatform;" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig newslot virtual instance class Xamarin.Forms.IPlatformElementConfiguration`2&lt;!!T, class Xamarin.Forms.ScrollView&gt; On&lt;(class Xamarin.Forms.IConfigPlatform) T&gt;() cil managed" />
+      <MemberType>Method</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>2.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <ReturnValue>
+        <ReturnType>Xamarin.Forms.IPlatformElementConfiguration&lt;T,Xamarin.Forms.ScrollView&gt;</ReturnType>
+      </ReturnValue>
+      <TypeParameters>
+        <TypeParameter Name="T">
+          <Constraints>
+            <InterfaceName>Xamarin.Forms.IConfigPlatform</InterfaceName>
+          </Constraints>
+        </TypeParameter>
+      </TypeParameters>
+      <Parameters />
+      <Docs>
+        <typeparam name="T">To be added.</typeparam>
+        <summary>Returns the platform-specific instance of this <see cref="T:Xamarin.Forms.ScrollView" />, on which a platform-specific method may be called.</summary>
+        <returns>To be added.</returns>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Member>
     <Member MemberName="OnSizeRequest">
       <MemberSignature Language="C#" Value="protected override Xamarin.Forms.SizeRequest OnSizeRequest (double widthConstraint, double heightConstraint);" />
       <MemberSignature Language="ILAsm" Value=".method familyhidebysig virtual instance valuetype Xamarin.Forms.SizeRequest OnSizeRequest(float64 widthConstraint, float64 heightConstraint) cil managed" />
@@ -209,7 +265,7 @@ for (var i=0; i<100; i++)
       </AssemblyInfo>
       <Attributes>
         <Attribute>
-          <AttributeName>System.Obsolete("Use OnMeasure")</AttributeName>
+          <AttributeName>System.Obsolete("OnSizeRequest is obsolete as of version 2.2.0. Please use OnMeasure instead.")</AttributeName>
         </Attribute>
       </Attributes>
       <ReturnValue>
@@ -312,9 +368,9 @@ for (var i=0; i<100; i++)
         <Parameter Name="animated" Type="System.Boolean" />
       </Parameters>
       <Docs>
-        <param name="x">To be added.</param>
-        <param name="y">To be added.</param>
-        <param name="animated">To be added.</param>
+        <param name="x">The X position of the finished scroll.</param>
+        <param name="y">The Y position of the finished scroll.</param>
+        <param name="animated">Whether or not to animate the scroll.</param>
         <summary>Returns a task that scrolls the scroll view to a position asynchronously.</summary>
         <returns>To be added.</returns>
         <remarks>To be added.</remarks>
@@ -338,11 +394,31 @@ for (var i=0; i<100; i++)
         <Parameter Name="animated" Type="System.Boolean" />
       </Parameters>
       <Docs>
-        <param name="element">To be added.</param>
-        <param name="position">To be added.</param>
-        <param name="animated">To be added.</param>
+        <param name="element">The element to scroll.</param>
+        <param name="position">The scroll position.</param>
+        <param name="animated">Whether or not to animate the scroll.</param>
         <summary>Returns a task that scrolls the scroll view to an element asynchronously.</summary>
         <returns>To be added.</returns>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Member>
+    <Member MemberName="ScrollToRequested">
+      <MemberSignature Language="C#" Value="public event EventHandler&lt;Xamarin.Forms.ScrollToRequestedEventArgs&gt; ScrollToRequested;" />
+      <MemberSignature Language="ILAsm" Value=".event class System.EventHandler`1&lt;class Xamarin.Forms.ScrollToRequestedEventArgs&gt; ScrollToRequested" />
+      <MemberType>Event</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>2.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <Attributes>
+        <Attribute>
+          <AttributeName>System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)</AttributeName>
+        </Attribute>
+      </Attributes>
+      <ReturnValue>
+        <ReturnType>System.EventHandler&lt;Xamarin.Forms.ScrollToRequestedEventArgs&gt;</ReturnType>
+      </ReturnValue>
+      <Docs>
+        <summary>For internal use by the Xamarin.Forms platform.</summary>
         <remarks>To be added.</remarks>
       </Docs>
     </Member>
@@ -416,6 +492,53 @@ for (var i=0; i<100; i++)
         <remarks>To be added.</remarks>
       </Docs>
     </Member>
+    <Member MemberName="SendScrollFinished">
+      <MemberSignature Language="C#" Value="public void SendScrollFinished ();" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig newslot virtual instance void SendScrollFinished() cil managed" />
+      <MemberType>Method</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>2.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <Attributes>
+        <Attribute>
+          <AttributeName>System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)</AttributeName>
+        </Attribute>
+      </Attributes>
+      <ReturnValue>
+        <ReturnType>System.Void</ReturnType>
+      </ReturnValue>
+      <Parameters />
+      <Docs>
+        <summary>For internal use by the Xamarin.Forms platform.</summary>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Member>
+    <Member MemberName="SetScrolledPosition">
+      <MemberSignature Language="C#" Value="public void SetScrolledPosition (double x, double y);" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig newslot virtual instance void SetScrolledPosition(float64 x, float64 y) cil managed" />
+      <MemberType>Method</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>2.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <Attributes>
+        <Attribute>
+          <AttributeName>System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)</AttributeName>
+        </Attribute>
+      </Attributes>
+      <ReturnValue>
+        <ReturnType>System.Void</ReturnType>
+      </ReturnValue>
+      <Parameters>
+        <Parameter Name="x" Type="System.Double" />
+        <Parameter Name="y" Type="System.Double" />
+      </Parameters>
+      <Docs>
+        <param name="x">For internal use by the Xamarin.Forms platform.</param>
+        <param name="y">For internal use by the Xamarin.Forms platform.</param>
+        <summary>For internal use by the Xamarin.Forms platform.</summary>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Member>
     <Member MemberName="Xamarin.Forms.IScrollViewController.GetScrollPositionForElement">
       <MemberSignature Language="C#" Value="Xamarin.Forms.Point IScrollViewController.GetScrollPositionForElement (Xamarin.Forms.VisualElement item, Xamarin.Forms.ScrollToPosition pos);" />
       <MemberSignature Language="ILAsm" Value=".method hidebysig newslot virtual instance valuetype Xamarin.Forms.Point Xamarin.Forms.IScrollViewController.GetScrollPositionForElement(class Xamarin.Forms.VisualElement item, valuetype Xamarin.Forms.ScrollToPosition pos) cil managed" />
@@ -423,7 +546,6 @@ for (var i=0; i<100; i++)
       <AssemblyInfo>
         <AssemblyVersion>1.4.0.0</AssemblyVersion>
         <AssemblyVersion>1.5.0.0</AssemblyVersion>
-        <AssemblyVersion>2.0.0.0</AssemblyVersion>
       </AssemblyInfo>
       <ReturnValue>
         <ReturnType>Xamarin.Forms.Point</ReturnType>
@@ -433,9 +555,9 @@ for (var i=0; i<100; i++)
         <Parameter Name="pos" Type="Xamarin.Forms.ScrollToPosition" />
       </Parameters>
       <Docs>
-        <param name="item">To be added.</param>
-        <param name="pos">To be added.</param>
-        <summary>Internal.</summary>
+        <param name="item">For internal use by the Xamarin.Forms platform.</param>
+        <param name="pos">For internal use by the Xamarin.Forms platform.</param>
+        <summary>For internal use by the Xamarin.Forms platform.</summary>
         <returns>To be added.</returns>
         <remarks>To be added.</remarks>
       </Docs>
@@ -447,14 +569,13 @@ for (var i=0; i<100; i++)
       <AssemblyInfo>
         <AssemblyVersion>1.4.0.0</AssemblyVersion>
         <AssemblyVersion>1.5.0.0</AssemblyVersion>
-        <AssemblyVersion>2.0.0.0</AssemblyVersion>
       </AssemblyInfo>
       <ReturnValue>
         <ReturnType>System.Void</ReturnType>
       </ReturnValue>
       <Parameters />
       <Docs>
-        <summary>Internal.</summary>
+        <summary>For internal use by the Xamarin.Forms platform.</summary>
         <remarks>To be added.</remarks>
       </Docs>
     </Member>
@@ -465,7 +586,6 @@ for (var i=0; i<100; i++)
       <AssemblyInfo>
         <AssemblyVersion>1.4.0.0</AssemblyVersion>
         <AssemblyVersion>1.5.0.0</AssemblyVersion>
-        <AssemblyVersion>2.0.0.0</AssemblyVersion>
       </AssemblyInfo>
       <ReturnValue>
         <ReturnType>System.Void</ReturnType>
@@ -475,9 +595,9 @@ for (var i=0; i<100; i++)
         <Parameter Name="y" Type="System.Double" />
       </Parameters>
       <Docs>
-        <param name="x">To be added.</param>
-        <param name="y">To be added.</param>
-        <summary>Internal.</summary>
+        <param name="x">For internal use by the Xamarin.Forms platform.</param>
+        <param name="y">For internal use by the Xamarin.Forms platform.</param>
+        <summary>For internal use by the Xamarin.Forms platform.</summary>
         <remarks>To be added.</remarks>
       </Docs>
     </Member>

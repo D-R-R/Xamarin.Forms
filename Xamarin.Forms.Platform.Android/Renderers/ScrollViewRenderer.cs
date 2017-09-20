@@ -5,18 +5,22 @@ using Android.Animation;
 using Android.Graphics;
 using Android.Views;
 using Android.Widget;
+using Xamarin.Forms.Internals;
 using AScrollView = Android.Widget.ScrollView;
+using AView = Android.Views.View;
 
 namespace Xamarin.Forms.Platform.Android
 {
-	public class ScrollViewRenderer : AScrollView, IVisualElementRenderer
+	public class ScrollViewRenderer : AScrollView, IVisualElementRenderer, IEffectControlProvider
 	{
 		ScrollViewContainer _container;
 		HorizontalScrollView _hScrollView;
 		bool _isAttached;
-
+		internal bool ShouldSkipOnTouch;
 		bool _isBidirectional;
 		ScrollView _view;
+		int _previousBottom;
+		bool _isEnabled;
 
 		public ScrollViewRenderer() : base(Forms.Context)
 		{
@@ -37,6 +41,13 @@ namespace Xamarin.Forms.Platform.Android
 		}
 
 		public event EventHandler<VisualElementChangedEventArgs> ElementChanged;
+
+		event EventHandler<PropertyChangedEventArgs> ElementPropertyChanged;
+		event EventHandler<PropertyChangedEventArgs> IVisualElementRenderer.ElementPropertyChanged
+		{
+			add { ElementPropertyChanged += value; }
+			remove { ElementPropertyChanged -= value; }
+		}
 
 		public SizeRequest GetDesiredSize(int widthConstraint, int heightConstraint)
 		{
@@ -69,14 +80,16 @@ namespace Xamarin.Forms.Platform.Android
 
 				LoadContent();
 				UpdateBackgroundColor();
-
 				UpdateOrientation();
+				UpdateIsEnabled();
 
 				element.SendViewInitialized(this);
 
 				if (!string.IsNullOrEmpty(element.AutomationId))
 					ContentDescription = element.AutomationId;
 			}
+
+			EffectUtilities.RegisterEffectControlProvider(this, oldElement, element);
 		}
 
 		public VisualElementTracker Tracker { get; private set; }
@@ -87,10 +100,9 @@ namespace Xamarin.Forms.Platform.Android
 				Tracker.UpdateLayout();
 		}
 
-		public ViewGroup ViewGroup
-		{
-			get { return this; }
-		}
+		public ViewGroup ViewGroup => this;
+
+		AView IVisualElementRenderer.View => this;
 
 		public override void Draw(Canvas canvas)
 		{
@@ -118,6 +130,15 @@ namespace Xamarin.Forms.Platform.Android
 
 		public override bool OnTouchEvent(MotionEvent ev)
 		{
+			if (!_isEnabled)
+				return false;
+
+			if (ShouldSkipOnTouch)
+			{
+				ShouldSkipOnTouch = false;
+				return false;
+			}
+
 			// The nested ScrollViews will allow us to scroll EITHER vertically OR horizontally in a single gesture.
 			// This will allow us to also scroll diagonally.
 			// We'll fall through to the base event so we still get the fling from the ScrollViews.
@@ -181,9 +202,17 @@ namespace Xamarin.Forms.Platform.Android
 
 		protected override void OnLayout(bool changed, int left, int top, int right, int bottom)
 		{
+			// If the scroll view has changed size because of soft keyboard dismissal
+			// (while WindowSoftInputModeAdjust is set to Resize), then we may need to request a 
+			// layout of the ScrollViewContainer
+			bool requestContainerLayout = bottom > _previousBottom;
+			_previousBottom = bottom;
+
 			base.OnLayout(changed, left, top, right, bottom);
 			if (_view.Content != null && _hScrollView != null)
 				_hScrollView.Layout(0, 0, right - left, Math.Max(bottom - top, (int)Context.ToPixels(_view.Content.Height)));
+			else if(_view.Content != null && requestContainerLayout)
+				_container?.RequestLayout();
 		}
 
 		protected override void OnScrollChanged(int l, int t, int oldl, int oldt)
@@ -196,7 +225,31 @@ namespace Xamarin.Forms.Platform.Android
 		internal void UpdateScrollPosition(double x, double y)
 		{
 			if (_view != null)
+			{
+				if (_view.Orientation == ScrollOrientation.Both)
+				{
+					if (x == 0)
+						x = Forms.Context.FromPixels(_hScrollView.ScrollX);
+
+					if (y == 0)
+						y = Forms.Context.FromPixels(ScrollY);
+				}
+
 				Controller.SetScrolledPosition(x, y);
+			}
+		}
+
+		void IEffectControlProvider.RegisterEffect(Effect effect)
+		{
+			var platformEffect = effect as PlatformEffect;
+			if (platformEffect != null)
+				OnRegisterEffect(platformEffect);
+		}
+
+		void OnRegisterEffect(PlatformEffect effect)
+		{
+			effect.SetContainer(this);
+			effect.SetControl(this);
 		}
 
 		static int GetDistance(double start, double position, double v)
@@ -206,12 +259,26 @@ namespace Xamarin.Forms.Platform.Android
 
 		void HandlePropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
+			ElementPropertyChanged?.Invoke(this, e);
+
 			if (e.PropertyName == "Content")
 				LoadContent();
 			else if (e.PropertyName == VisualElement.BackgroundColorProperty.PropertyName)
 				UpdateBackgroundColor();
 			else if (e.PropertyName == ScrollView.OrientationProperty.PropertyName)
 				UpdateOrientation();
+			else if (e.PropertyName == VisualElement.IsEnabledProperty.PropertyName)
+				UpdateIsEnabled();
+		}
+
+		void UpdateIsEnabled()
+		{
+			if (Element == null)
+			{
+				return;
+			}
+
+			_isEnabled = Element.IsEnabled;
 		}
 
 		void LoadContent()
@@ -242,8 +309,8 @@ namespace Xamarin.Forms.Platform.Android
 
 			var x = (int)Forms.Context.ToPixels(e.ScrollX);
 			var y = (int)Forms.Context.ToPixels(e.ScrollY);
-			int currentX = _view.Orientation == ScrollOrientation.Horizontal ? _hScrollView.ScrollX : ScrollX;
-			int currentY = _view.Orientation == ScrollOrientation.Horizontal ? _hScrollView.ScrollY : ScrollY;
+			int currentX = _view.Orientation == ScrollOrientation.Horizontal || _view.Orientation == ScrollOrientation.Both ? _hScrollView.ScrollX : ScrollX;
+			int currentY = _view.Orientation == ScrollOrientation.Vertical || _view.Orientation == ScrollOrientation.Both ? ScrollY : _hScrollView.ScrollY;
 			if (e.Mode == ScrollToMode.Element)
 			{
 				Point itemPosition = Controller.GetScrollPositionForElement(e.Element as VisualElement, e.Position);
@@ -269,10 +336,19 @@ namespace Xamarin.Forms.Platform.Android
 						return;
 					}
 
-					if (_view.Orientation == ScrollOrientation.Horizontal)
-						_hScrollView.ScrollTo(distX, distY);
-					else
-						ScrollTo(distX, distY);
+					switch (_view.Orientation)
+					{
+						case ScrollOrientation.Horizontal:
+							_hScrollView.ScrollTo(distX, distY);
+							break;
+						case ScrollOrientation.Vertical:
+							ScrollTo(distX, distY);
+							break;
+						default:
+							_hScrollView.ScrollTo(distX, distY);
+							ScrollTo(distX, distY);
+							break;
+					}
 				};
 				animator.AnimationEnd += delegate
 				{
@@ -285,12 +361,25 @@ namespace Xamarin.Forms.Platform.Android
 			}
 			else
 			{
-				if (_view.Orientation == ScrollOrientation.Horizontal)
-					_hScrollView.ScrollTo(x, y);
-				else
-					ScrollTo(x, y);
+				switch (_view.Orientation)
+				{
+					case ScrollOrientation.Horizontal:
+						_hScrollView.ScrollTo(x, y);
+						break;
+					case ScrollOrientation.Vertical:
+						ScrollTo(x, y);
+						break;
+					default:
+						_hScrollView.ScrollTo(x, y);
+						ScrollTo(x, y);
+						break;
+				}
 				Controller.SendScrollFinished();
 			}
+		}
+
+		void IVisualElementRenderer.SetLabelFor(int? id)
+		{
 		}
 
 		void UpdateBackgroundColor()

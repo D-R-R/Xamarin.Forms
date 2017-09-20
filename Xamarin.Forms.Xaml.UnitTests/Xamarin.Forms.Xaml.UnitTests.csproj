@@ -10,6 +10,7 @@
     <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
     <RestorePackages>true</RestorePackages>
+    <XFDisableTargetsValidation>True</XFDisableTargetsValidation>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -47,22 +48,6 @@
     <NoWarn>0672;0219;0414</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Mono.Cecil, Version=0.9.6.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756, processorArchitecture=MSIL">
-      <HintPath>..\packages\Mono.Cecil.0.9.6.1\lib\net45\Mono.Cecil.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Mono.Cecil.Mdb, Version=0.9.6.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756, processorArchitecture=MSIL">
-      <HintPath>..\packages\Mono.Cecil.0.9.6.1\lib\net45\Mono.Cecil.Mdb.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Mono.Cecil.Pdb, Version=0.9.6.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756, processorArchitecture=MSIL">
-      <HintPath>..\packages\Mono.Cecil.0.9.6.1\lib\net45\Mono.Cecil.Pdb.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Mono.Cecil.Rocks, Version=0.9.6.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756, processorArchitecture=MSIL">
-      <HintPath>..\packages\Mono.Cecil.0.9.6.1\lib\net45\Mono.Cecil.Rocks.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="nunit.framework, Version=2.6.4.14350, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
       <HintPath>..\packages\NUnit.2.6.4\lib\nunit.framework.dll</HintPath>
       <Private>True</Private>
@@ -72,6 +57,18 @@
     <Reference Include="Microsoft.Build.Utilities.v4.0" />
     <Reference Include="Microsoft.Build.Framework" />
     <Reference Include="Microsoft.Build.Tasks.v4.0" />
+    <Reference Include="Mono.Cecil">
+      <HintPath>..\packages\Mono.Cecil.0.10.0-beta6\lib\net40\Mono.Cecil.dll</HintPath>
+    </Reference>
+    <Reference Include="Mono.Cecil.Mdb">
+      <HintPath>..\packages\Mono.Cecil.0.10.0-beta6\lib\net40\Mono.Cecil.Mdb.dll</HintPath>
+    </Reference>
+    <Reference Include="Mono.Cecil.Pdb">
+      <HintPath>..\packages\Mono.Cecil.0.10.0-beta6\lib\net40\Mono.Cecil.Pdb.dll</HintPath>
+    </Reference>
+    <Reference Include="Mono.Cecil.Rocks">
+      <HintPath>..\packages\Mono.Cecil.0.10.0-beta6\lib\net40\Mono.Cecil.Rocks.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Xamarin.Forms.Core.UnitTests\BaseTestFixture.cs">
@@ -80,17 +77,27 @@
     <Compile Include="..\Xamarin.Forms.Core.UnitTests\MockPlatformServices.cs">
       <Link>MockPlatformServices.cs</Link>
     </Compile>
+    <Compile Include="AutomationProperties.xaml.cs">
+      <DependentUpon>AutomationProperties.xaml</DependentUpon>
+    </Compile>
     <Compile Include="FontConverterTests.cs" />
+    <Compile Include="Issues\Bz43450.xaml.cs">
+      <DependentUpon>Bz43450.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz41296.xaml.cs">
+      <DependentUpon>Bz41296.xaml</DependentUpon>
+    </Compile>
     <Compile Include="LoaderTests.cs" />
+    <Compile Include="PlatformSpecifics.xaml.cs">
+      <DependentUpon>PlatformSpecifics.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ViewExtensionsTest.cs" />
     <Compile Include="MarkupExpressionParserTests.cs" />
     <Compile Include="MarkupExtensionTests.cs" />
     <Compile Include="NameScopeTests.cs" />
     <Compile Include="OnPlatformTests.cs" />
-    <Compile Include="StaticExtensionTests.cs" />
     <Compile Include="NullExtensionTests.cs" />
     <Compile Include="TypeExtensionTests.cs" />
-    <Compile Include="FactoryMethodTests.cs" />
     <Compile Include="XamlgTests.cs" />
     <Compile Include="Issues\TestCases.cs" />
     <Compile Include="Issues\Issue1493.cs" />
@@ -118,9 +125,6 @@
     <Compile Include="Issues\Issue2016.xaml.cs">
       <DependentUpon>Issue2016.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Compiled\FindByName.xaml.cs">
-      <DependentUpon>FindByName.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Validation\SetterOnNonBP.xaml.cs">
       <DependentUpon>SetterOnNonBP.xaml</DependentUpon>
     </Compile>
@@ -131,17 +135,14 @@
     <Compile Include="Issues\Issue2114.xaml.cs">
       <DependentUpon>Issue2114.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Issues\Issue2125.xaml.cs">
-      <DependentUpon>Issue2125.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Validation\StaticExtensionException.xaml.cs">
       <DependentUpon>StaticExtensionException.xaml</DependentUpon>
     </Compile>
     <Compile Include="Issues\Issue2152.xaml.cs">
       <DependentUpon>Issue2152.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ImplicitConversions.xaml.cs">
-      <DependentUpon>ImplicitConversions.xaml</DependentUpon>
+    <Compile Include="BuiltInConversions.xaml.cs">
+      <DependentUpon>BuiltInConversions.xaml</DependentUpon>
     </Compile>
     <Compile Include="Issues\Issue2450.xaml.cs">
       <DependentUpon>Issue2450.xaml</DependentUpon>
@@ -166,9 +167,6 @@
     </Compile>
     <Compile Include="Issues\Issue2742.xaml.cs">
       <DependentUpon>Issue2742.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Compiled\SetValue.xaml.cs">
-      <DependentUpon>SetValue.xaml</DependentUpon>
     </Compile>
     <Compile Include="X2009Primitives.xaml.cs">
       <DependentUpon>X2009Primitives.xaml</DependentUpon>
@@ -344,6 +342,166 @@
     <Compile Include="SharedResourceDictionary2.xaml.cs">
       <DependentUpon>SharedResourceDictionary2.xaml</DependentUpon>
     </Compile>
+    <Compile Include="XamlLoaderGetXamlForTypeTests.xaml.cs">
+      <DependentUpon>XamlLoaderGetXamlForTypeTests.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Unreported004.xaml.cs">
+      <DependentUpon>Unreported004.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="FindByName.xaml.cs">
+      <DependentUpon>FindByName.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SetValue.xaml.cs">
+      <DependentUpon>SetValue.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="TypeExtension.xaml.cs">
+      <DependentUpon>TypeExtension.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="NativeViewsAndBindings.xaml.cs">
+      <DependentUpon>NativeViewsAndBindings.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MockCompiler.cs" />
+    <Compile Include="XStaticException.xaml.cs">
+      <DependentUpon>XStaticException.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="CompiledTypeConverter.xaml.cs">
+      <DependentUpon>CompiledTypeConverter.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz43301.xaml.cs">
+      <DependentUpon>Bz43301.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="BindingsCompiler.xaml.cs">
+      <DependentUpon>BindingsCompiler.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Unreported005.xaml.cs">
+      <DependentUpon>Unreported005.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz47950.xaml.cs">
+      <DependentUpon>Bz47950.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Unreported006.xaml.cs">
+      <DependentUpon>Unreported006.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz48554.xaml.cs">
+      <DependentUpon>Bz48554.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Unreported007.xaml.cs">
+      <DependentUpon>Unreported007.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz47703.xaml.cs">
+      <DependentUpon>Bz47703.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="FactoryMethodMissingCtor.xaml.cs">
+      <DependentUpon>FactoryMethodMissingCtor.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="FactoryMethodMissingMethod.xaml.cs">
+      <DependentUpon>FactoryMethodMissingMethod.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="XamlC\TypeReferenceExtensionsTests.cs" />
+    <Compile Include="Issues\Bz46921.xaml.cs">
+      <DependentUpon>Bz46921.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="I8.xaml.cs">
+      <DependentUpon>I8.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz49307.xaml.cs">
+      <DependentUpon>Bz49307.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Unreported008.xaml.cs">
+      <DependentUpon>Unreported008.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz40906.xaml.cs">
+      <DependentUpon>Bz40906.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz45179.xaml.cs">
+      <DependentUpon>Bz45179.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz51567.xaml.cs">
+      <DependentUpon>Bz51567.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz42531.xaml.cs">
+      <DependentUpon>Bz42531.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz45299.xaml.cs">
+      <DependentUpon>Bz45299.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz43733.xaml.cs">
+      <DependentUpon>Bz43733.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz44213.xaml.cs">
+      <DependentUpon>Bz44213.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="DefaultCtorRouting.xaml.cs">
+      <DependentUpon>DefaultCtorRouting.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="DefaultCtorRouting2.xaml.cs">
+      <DependentUpon>DefaultCtorRouting2.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz43694.xaml.cs">
+      <DependentUpon>Bz43694.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz45891.xaml.cs">
+      <DependentUpon>Bz45891.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz44216.xaml.cs">
+      <DependentUpon>Bz44216.xaml</DependentUpon>
+      <DependentUpon>AcceptEmptyServiceProvider.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="AcceptEmptyServiceProvider.xaml.cs">
+      <DependentUpon>AcceptEmptyServiceProvider.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Unreported009.xaml.cs">
+      <DependentUpon>Unreported009.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz53318.xaml.cs">
+      <DependentUpon>Bz53318.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz53381.xaml.cs">
+      <DependentUpon>Bz53381.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz53381App.xaml.cs">
+      <DependentUpon>Bz53381App.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz53203.xaml.cs">
+      <DependentUpon>Bz53203.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="TestXmlnsUsing.xaml.cs">
+      <DependentUpon>TestXmlnsUsing.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz54334.xaml.cs">
+      <DependentUpon>Bz54334.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz41048.xaml.cs">
+      <DependentUpon>Bz41048.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz53275.xaml.cs">
+      <DependentUpon>Bz53275.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz55343.xaml.cs">
+      <DependentUpon>Bz55343.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz54717.xaml.cs">
+      <DependentUpon>Bz54717.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz55347.xaml.cs">
+      <DependentUpon>Bz55347.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="FieldModifier.xaml.cs">
+      <DependentUpon>FieldModifier.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz56852.xaml.cs">
+      <DependentUpon>Bz56852.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz53350.xaml.cs">
+      <DependentUpon>Bz53350.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="XamlC\MethodDefinitionExtensionsTests.cs" />
+    <Compile Include="Issues\Bz57574.xaml.cs">
+      <DependentUpon>Bz57574.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Issues\Bz58922.xaml.cs">
+			<DependentUpon>Bz58922.xaml</DependentUpon>
+    </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <Import Project="..\.nuspec\Xamarin.Forms.Debug.targets" />
@@ -404,16 +562,13 @@
     <EmbeddedResource Include="Issues\Issue2114.xaml">
       <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
     </EmbeddedResource>
-    <EmbeddedResource Include="Issues\Issue2125.xaml">
-      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
-    </EmbeddedResource>
     <EmbeddedResource Include="Validation\StaticExtensionException.xaml">
       <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
     </EmbeddedResource>
     <EmbeddedResource Include="Issues\Issue2152.xaml">
       <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
     </EmbeddedResource>
-    <EmbeddedResource Include="ImplicitConversions.xaml">
+    <EmbeddedResource Include="BuiltInConversions.xaml">
       <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
     </EmbeddedResource>
     <EmbeddedResource Include="Issues\Issue2450.xaml">
@@ -438,12 +593,6 @@
       <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
     </EmbeddedResource>
     <EmbeddedResource Include="Issues\Issue2742.xaml">
-      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Compiled\FindByName.xaml">
-      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Compiled\SetValue.xaml">
       <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
     </EmbeddedResource>
     <EmbeddedResource Include="X2009Primitives.xaml">
@@ -614,7 +763,163 @@
     <EmbeddedResource Include="SharedResourceDictionary2.xaml">
       <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
     </EmbeddedResource>
-  </ItemGroup>
+    <EmbeddedResource Include="XamlLoaderGetXamlForTypeTests.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Unreported004.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FindByName.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SetValue.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="TypeExtension.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="NativeViewsAndBindings.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="XStaticException.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="CompiledTypeConverter.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz43301.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="BindingsCompiler.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Unreported005.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz47950.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Unreported006.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz48554.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Unreported007.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz47703.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FactoryMethodMissingCtor.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FactoryMethodMissingMethod.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz46921.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="I8.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz49307.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Unreported008.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz40906.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz45179.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz51567.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz42531.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz45299.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz43733.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz44213.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="DefaultCtorRouting.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="DefaultCtorRouting2.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz43694.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz45891.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz44216.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="AcceptEmptyServiceProvider.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Unreported009.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz53318.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz53381.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz53381App.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz53203.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="TestXmlnsUsing.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz54334.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz41048.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz53275.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz55343.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz54717.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz55347.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FieldModifier.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz56852.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz53350.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz57574.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Issues\Bz58922.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+	</ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
@@ -629,5 +934,24 @@
     </PropertyGroup>
     <Error Condition="!Exists('$(SolutionDir)\.nuget\NuGet.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)\.nuget\NuGet.targets'))" />
   </Target>
-  <ItemGroup />
+  <ItemGroup>
+    <EmbeddedResource Include="Issues\Bz41296.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="PlatformSpecifics.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Issues\Bz43450.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="AutomationProperties.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+  </ItemGroup>
 </Project>

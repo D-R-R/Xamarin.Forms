@@ -11,12 +11,15 @@ using Android.Support.Design.Widget;
 using Android.Support.V4.App;
 using Android.Support.V4.View;
 using Android.Views;
+using Xamarin.Forms.Internals;
+using Xamarin.Forms.PlatformConfiguration.AndroidSpecific;
 
 namespace Xamarin.Forms.Platform.Android.AppCompat
 {
 	public class TabbedPageRenderer : VisualElementRenderer<TabbedPage>, TabLayout.IOnTabSelectedListener, ViewPager.IOnPageChangeListener, IManageFragments
 	{
 		Drawable _backgroundDrawable;
+		int? _defaultColor;
 		bool _disposed;
 		FragmentManager _fragmentManager;
 		TabLayout _tabLayout;
@@ -28,7 +31,7 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 			AutoPackage = false;
 		}
 
-		public FragmentManager FragmentManager => _fragmentManager ?? (_fragmentManager = ((FormsAppCompatActivity)Context).SupportFragmentManager);
+		FragmentManager FragmentManager => _fragmentManager ?? (_fragmentManager = ((FormsAppCompatActivity)Context).SupportFragmentManager);
 
 		internal bool UseAnimations
 		{
@@ -43,7 +46,9 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 			}
 		}
 
-		public void SetFragmentManager(FragmentManager childFragmentManager)
+		IPageController PageController => Element as IPageController;
+
+		void IManageFragments.SetFragmentManager(FragmentManager childFragmentManager)
 		{
 			if (_fragmentManager == null)
 				_fragmentManager = childFragmentManager;
@@ -92,9 +97,10 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 					IVisualElementRenderer pageRenderer = Android.Platform.GetRenderer(pageToRemove);
 					if (pageRenderer != null)
 					{
-						pageRenderer.ViewGroup.RemoveFromParent();
+						pageRenderer.View.RemoveFromParent();
 						pageRenderer.Dispose();
 					}
+					pageToRemove.PropertyChanged -= OnPagePropertyChanged;
 					pageToRemove.ClearValue(Android.Platform.RendererProperty);
 				}
 
@@ -113,7 +119,7 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 				}
 
 				if (Element != null)
-					Element.InternalChildren.CollectionChanged -= OnChildrenCollectionChanged;
+					PageController.InternalChildren.CollectionChanged -= OnChildrenCollectionChanged;
 			}
 
 			base.Dispose(disposing);
@@ -122,13 +128,13 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 		protected override void OnAttachedToWindow()
 		{
 			base.OnAttachedToWindow();
-			Element.SendAppearing();
+			PageController.SendAppearing();
 		}
 
 		protected override void OnDetachedFromWindow()
 		{
 			base.OnDetachedFromWindow();
-			Element.SendDisappearing();
+			PageController.SendDisappearing();
 		}
 
 		protected override void OnElementChanged(ElementChangedEventArgs<TabbedPage> e)
@@ -138,7 +144,7 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 			var activity = (FormsAppCompatActivity)Context;
 
 			if (e.OldElement != null)
-				e.OldElement.InternalChildren.CollectionChanged -= OnChildrenCollectionChanged;
+				((IPageController)e.OldElement).InternalChildren.CollectionChanged -= OnChildrenCollectionChanged;
 
 			if (e.NewElement != null)
 			{
@@ -153,32 +159,31 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 						tabs = _tabLayout = new TabLayout(activity) { TabMode = TabLayout.ModeFixed, TabGravity = TabLayout.GravityFill };
 					FormsViewPager pager =
 						_viewPager =
-						new FormsViewPager(activity) 
+						new FormsViewPager(activity)
 						{
 							OverScrollMode = OverScrollMode.Never,
 							EnableGesture = UseAnimations,
 							LayoutParameters = new LayoutParams(LayoutParams.MatchParent, LayoutParams.MatchParent),
 							Adapter = new FormsFragmentPagerAdapter<Page>(e.NewElement, FragmentManager) { CountOverride = e.NewElement.Children.Count }
 						};
-					pager.Id = FormsAppCompatActivity.GetUniqueId();
+					pager.Id = Platform.GenerateViewId();
 					pager.AddOnPageChangeListener(this);
-
-					tabs.SetupWithViewPager(pager);
-					UpdateTabIcons();
-					tabs.SetOnTabSelectedListener(this);
 
 					AddView(pager);
 					AddView(tabs);
+
+					OnChildrenCollectionChanged(null, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
 				}
 
 				TabbedPage tabbedPage = e.NewElement;
 				if (tabbedPage.CurrentPage != null)
 					ScrollToCurrentPage();
 
-				UpdateIgnoreContainerAreas();
-				tabbedPage.InternalChildren.CollectionChanged += OnChildrenCollectionChanged;
+				((IPageController)tabbedPage).InternalChildren.CollectionChanged += OnChildrenCollectionChanged;
 				UpdateBarBackgroundColor();
 				UpdateBarTextColor();
+				UpdateSwipePaging();
+				UpdateOffscreenPageLimit();
 			}
 		}
 
@@ -187,11 +192,16 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 			base.OnElementPropertyChanged(sender, e);
 
 			if (e.PropertyName == nameof(TabbedPage.CurrentPage))
-				ScrollToCurrentPage();
+			{
+				if (Element.CurrentPage != null)
+					ScrollToCurrentPage();
+			}
 			else if (e.PropertyName == NavigationPage.BarBackgroundColorProperty.PropertyName)
 				UpdateBarBackgroundColor();
 			else if (e.PropertyName == NavigationPage.BarTextColorProperty.PropertyName)
 				UpdateBarTextColor();
+			else if (e.PropertyName == PlatformConfiguration.AndroidSpecific.TabbedPage.IsSwipePagingEnabledProperty.PropertyName)
+				UpdateSwipePaging();
 		}
 
 		protected override void OnLayout(bool changed, int l, int t, int r, int b)
@@ -205,21 +215,24 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 			tabs.Measure(MeasureSpecFactory.MakeMeasureSpec(width, MeasureSpecMode.Exactly), MeasureSpecFactory.MakeMeasureSpec(height, MeasureSpecMode.AtMost));
 			var tabsHeight = 0;
 
-			//MinimumHeight is only available on API 16+
-			if ((int)Build.VERSION.SdkInt >= 16)
-				tabsHeight = Math.Min(height, Math.Max(tabs.MeasuredHeight, tabs.MinimumHeight));
-			else
-				tabsHeight = Math.Min(height, tabs.MeasuredHeight);
+			if (tabs.Visibility != ViewStates.Gone)
+			{
+				//MinimumHeight is only available on API 16+
+				if ((int)Build.VERSION.SdkInt >= 16)
+					tabsHeight = Math.Min(height, Math.Max(tabs.MeasuredHeight, tabs.MinimumHeight));
+				else
+					tabsHeight = Math.Min(height, tabs.MeasuredHeight);
+			}
 
 			pager.Measure(MeasureSpecFactory.MakeMeasureSpec(width, MeasureSpecMode.AtMost), MeasureSpecFactory.MakeMeasureSpec(height, MeasureSpecMode.AtMost));
 
 			if (width > 0 && height > 0)
 			{
-				Element.ContainerArea = new Rectangle(0, context.FromPixels(tabsHeight), context.FromPixels(width), context.FromPixels(height - tabsHeight));
+				PageController.ContainerArea = new Rectangle(0, context.FromPixels(tabsHeight), context.FromPixels(width), context.FromPixels(height - tabsHeight));
 
-				for (var i = 0; i < Element.InternalChildren.Count; i++)
+				for (var i = 0; i < PageController.InternalChildren.Count; i++)
 				{
-					var child = Element.InternalChildren[i] as VisualElement;
+					var child = PageController.InternalChildren[i] as VisualElement;
 					if (child == null)
 						continue;
 					IVisualElementRenderer renderer = Android.Platform.GetRenderer(child);
@@ -241,14 +254,20 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 
 		void OnChildrenCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
 		{
+			e.Apply((o, i, c) => SetupPage((Page)o), (o, i) => TeardownPage((Page)o), Reset);
+
 			FormsViewPager pager = _viewPager;
 			TabLayout tabs = _tabLayout;
 
 			((FormsFragmentPagerAdapter<Page>)pager.Adapter).CountOverride = Element.Children.Count;
+			
 			pager.Adapter.NotifyDataSetChanged();
 
 			if (Element.Children.Count == 0)
+			{
 				tabs.RemoveAllTabs();
+				tabs.SetupWithViewPager(null);
+			}
 			else
 			{
 				tabs.SetupWithViewPager(pager);
@@ -259,31 +278,70 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 			UpdateIgnoreContainerAreas();
 		}
 
+		void TeardownPage(Page page)
+		{
+			page.PropertyChanged -= OnPagePropertyChanged;
+		}
+
+		void SetupPage(Page page)
+		{
+			page.PropertyChanged += OnPagePropertyChanged;
+		}
+
+		void Reset()
+		{
+			foreach (var page in Element.Children)
+				SetupPage(page);
+		}
+
+		void OnPagePropertyChanged(object sender, PropertyChangedEventArgs e)
+		{
+			if (e.PropertyName == Page.TitleProperty.PropertyName)
+			{
+				var page = (Page)sender;
+				var index = Element.Children.IndexOf(page);
+				TabLayout.Tab tab = _tabLayout.GetTabAt(index);
+				tab.SetText(page.Title);
+			}
+		}
+
 		void ScrollToCurrentPage()
 		{
+			((Platform)Element.Platform).NavAnimationInProgress = true;
 			_viewPager.SetCurrentItem(Element.Children.IndexOf(Element.CurrentPage), UseAnimations);
+			((Platform)Element.Platform).NavAnimationInProgress = false;
 		}
 
 		void UpdateIgnoreContainerAreas()
 		{
-			foreach (Page child in Element.Children)
+			foreach (IPageController child in Element.Children)
 				child.IgnoresContainerArea = child is NavigationPage;
+		}
+
+		void UpdateOffscreenPageLimit()
+		{
+			_viewPager.OffscreenPageLimit = Element.OnThisPlatform().OffscreenPageLimit();
+		}
+
+		void UpdateSwipePaging()
+		{
+			_viewPager.EnableGesture = Element.OnThisPlatform().IsSwipePagingEnabled();
 		}
 
 		void UpdateTabBarTranslation(int position, float offset)
 		{
 			TabLayout tabs = _tabLayout;
 
-			if (position >= Element.InternalChildren.Count)
+			if (position >= PageController.InternalChildren.Count)
 				return;
 
-			var leftPage = (Page)Element.InternalChildren[position];
+			var leftPage = (Page)PageController.InternalChildren[position];
 			IVisualElementRenderer leftRenderer = Android.Platform.GetRenderer(leftPage);
 
 			if (leftRenderer == null)
 				return;
 
-			if (offset <= 0 || position >= Element.InternalChildren.Count - 1)
+			if (offset <= 0 || position >= PageController.InternalChildren.Count - 1)
 			{
 				var leftNavRenderer = leftRenderer as NavigationPageRenderer;
 				if (leftNavRenderer != null)
@@ -293,7 +351,7 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 			}
 			else
 			{
-				var rightPage = (Page)Element.InternalChildren[position + 1];
+				var rightPage = (Page)PageController.InternalChildren[position + 1];
 				IVisualElementRenderer rightRenderer = Android.Platform.GetRenderer(rightPage);
 
 				var leftHeight = 0;
@@ -325,8 +383,13 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 					continue;
 
 				TabLayout.Tab tab = tabs.GetTabAt(i);
-				tab.SetIcon(ResourceManager.IdFromTitle(icon, ResourceManager.DrawableClass));
+				SetTabIcon(tab, icon);
 			}
+		}
+
+		protected virtual void SetTabIcon(TabLayout.Tab tab, FileImageSource icon)
+		{
+			tab.SetIcon(ResourceManager.IdFromTitle(icon, ResourceManager.DrawableClass));
 		}
 
 		void UpdateBarBackgroundColor()
@@ -364,9 +427,18 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 			if (_disposed || _tabLayout == null)
 				return;
 
-			Color textColor = Element.BarTextColor;
-			if (!textColor.IsDefault)
-				_tabLayout.SetTabTextColors(textColor.ToAndroid().ToArgb(), textColor.ToAndroid().ToArgb());
+			int currentColor = _tabLayout.TabTextColors.DefaultColor;
+
+			if (!_defaultColor.HasValue)
+				_defaultColor = currentColor;
+
+			Color newTextColor = Element.BarTextColor;
+			int newTextColorArgb = newTextColor.ToAndroid().ToArgb();
+
+			if (!newTextColor.IsDefault && currentColor != newTextColorArgb)
+				_tabLayout.SetTabTextColors(newTextColorArgb, newTextColorArgb);
+			else if (newTextColor.IsDefault && _defaultColor.HasValue && currentColor != _defaultColor)
+				_tabLayout.SetTabTextColors(_defaultColor.Value, _defaultColor.Value);
 		}
 	}
 }

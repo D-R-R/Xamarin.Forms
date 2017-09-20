@@ -3,6 +3,7 @@ using System.ComponentModel;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media;
+using Xamarin.Forms.Internals;
 
 #if WINDOWS_UWP
 
@@ -12,23 +13,14 @@ namespace Xamarin.Forms.Platform.UWP
 namespace Xamarin.Forms.Platform.WinRT
 #endif
 {
-	public class DatePickerRenderer : ViewRenderer<DatePicker, FormsDatePicker>, IWrapperAware
+	public class DatePickerRenderer : ViewRenderer<DatePicker, Windows.UI.Xaml.Controls.DatePicker>
 	{
 		Brush _defaultBrush;
-
-		public void NotifyWrapped()
-		{
-			if (Control != null)
-			{
-				Control.ForceInvalidate += PickerOnForceInvalidate;
-			}
-		}
 
 		protected override void Dispose(bool disposing)
 		{
 			if (disposing && Control != null)
 			{
-				Control.ForceInvalidate -= PickerOnForceInvalidate;
 				Control.DateChanged -= OnControlDateChanged;
 				Control.Loaded -= ControlOnLoaded;
 			}
@@ -42,7 +34,7 @@ namespace Xamarin.Forms.Platform.WinRT
 			{
 				if (Control == null)
 				{
-					var picker = new FormsDatePicker();
+					var picker = new Windows.UI.Xaml.Controls.DatePicker();
 					SetNativeControl(picker);
 					Control.Loaded += ControlOnLoaded;
 					Control.DateChanged += OnControlDateChanged;
@@ -78,6 +70,8 @@ namespace Xamarin.Forms.Platform.WinRT
 				UpdateTextColor();
 		}
 
+		protected override bool PreventGestureBubbling { get; set; } = true;
+
 		void OnControlDateChanged(object sender, DatePickerValueChangedEventArgs e)
 		{
 			Element.Date = e.NewDate.Date;
@@ -85,12 +79,7 @@ namespace Xamarin.Forms.Platform.WinRT
 			if (currentDate != e.NewDate.Date) // Match coerced value
 				UpdateDate(currentDate);
 
-			Element.InvalidateMeasure(InvalidationTrigger.SizeRequestChanged);
-		}
-
-		void PickerOnForceInvalidate(object sender, EventArgs eventArgs)
-		{
-			Element?.InvalidateMeasure(InvalidationTrigger.SizeRequestChanged);
+			((IVisualElementController)Element).InvalidateMeasure(InvalidationTrigger.SizeRequestChanged);
 		}
 
 		void UpdateDate(DateTime date)
@@ -101,13 +90,25 @@ namespace Xamarin.Forms.Platform.WinRT
 		void UpdateMaximumDate()
 		{
 			DateTime maxdate = Element.MaximumDate;
-			Control.MaxYear = new DateTimeOffset(maxdate.Date);
+			Control.MaxYear = new DateTimeOffset(maxdate);
 		}
 
 		void UpdateMinimumDate()
 		{
 			DateTime mindate = Element.MinimumDate;
-			Control.MinYear = new DateTimeOffset(mindate);
+
+			try
+			{
+				Control.MinYear = new DateTimeOffset(mindate);
+			}
+			catch (ArgumentOutOfRangeException)
+			{
+				// This will be thrown when mindate equals DateTime.MinValue and the UTC offset is positive
+				// because the resulting DateTimeOffset.UtcDateTime will be out of range. In that case let's
+				// specify the Kind as UTC so there is no offset.
+				mindate = DateTime.SpecifyKind(mindate, DateTimeKind.Utc);
+				Control.MinYear = new DateTimeOffset(mindate);
+			}
 		}
 
 		void UpdateTextColor()

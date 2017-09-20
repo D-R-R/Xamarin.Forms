@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using Windows.UI.Xaml;
+using Windows.UI.Xaml.Automation.Peers;
 
 #if WINDOWS_UWP
 
@@ -15,6 +16,12 @@ namespace Xamarin.Forms.Platform.WinRT
 
 		bool _loaded;
 
+		protected override AutomationPeer OnCreateAutomationPeer()
+		{
+			// Pages need an automation peer so we can interact with them in automated tests
+			return new FrameworkElementAutomationPeer(this);
+		}
+
 		protected override void Dispose(bool disposing)
 		{
 			if (!disposing || _disposed)
@@ -24,7 +31,7 @@ namespace Xamarin.Forms.Platform.WinRT
 
 			if (Element != null)
 			{
-				ReadOnlyCollection<Element> children = Element.LogicalChildren;
+				ReadOnlyCollection<Element> children = ((IElementController)Element).LogicalChildren;
 				for (var i = 0; i < children.Count; i++)
 				{
 					var visualChild = children[i] as VisualElement;
@@ -40,10 +47,7 @@ namespace Xamarin.Forms.Platform.WinRT
 		{
 			base.OnElementChanged(e);
 
-			if (e.OldElement != null)
-			{
-				e.OldElement.SendDisappearing();
-			}
+			e.OldElement?.SendDisappearing();
 
 			if (e.NewElement != null)
 			{
@@ -53,6 +57,11 @@ namespace Xamarin.Forms.Platform.WinRT
 					Unloaded += OnUnloaded;
 
 					Tracker = new BackgroundTracker<FrameworkElement>(BackgroundProperty);
+				}
+
+				if (!string.IsNullOrEmpty(Element.AutomationId))
+				{
+					SetAutomationId(Element.AutomationId);
 				}
 
 				if (_loaded)

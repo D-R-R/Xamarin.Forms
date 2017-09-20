@@ -4,6 +4,7 @@ using System.Linq;
 using Android.Content;
 using Android.Support.V4.View;
 using Android.Views;
+using Xamarin.Forms.Internals;
 using Object = Java.Lang.Object;
 
 namespace Xamarin.Forms.Platform.Android
@@ -14,6 +15,8 @@ namespace Xamarin.Forms.Platform.Android
 		readonly ViewPager _pager;
 		bool _ignoreAndroidSelection;
 		CarouselPage _page;
+
+		IElementController ElementController => _page as IElementController;
 
 		public CarouselPageAdapter(ViewPager pager, CarouselPage page, Context context)
 		{
@@ -43,7 +46,7 @@ namespace Xamarin.Forms.Platform.Android
 				return;
 
 			int currentItem = _pager.CurrentItem;
-			_page.CurrentPage = currentItem >= 0 && currentItem < _page.LogicalChildren.Count ? _page.LogicalChildren[currentItem] as ContentPage : null;
+			_page.CurrentPage = currentItem >= 0 && currentItem < ElementController.LogicalChildren.Count ? ElementController.LogicalChildren[currentItem] as ContentPage : null;
 		}
 
 		public override void DestroyItem(ViewGroup p0, int p1, Object p2)
@@ -52,7 +55,7 @@ namespace Xamarin.Forms.Platform.Android
 			Page destroyedPage = holder.Instance.Item2;
 
 			IVisualElementRenderer renderer = Platform.GetRenderer(destroyedPage);
-			renderer.ViewGroup.RemoveFromParent();
+			renderer.View.RemoveFromParent();
 			holder.Instance.Item1.RemoveFromParent();
 		}
 
@@ -87,7 +90,7 @@ namespace Xamarin.Forms.Platform.Android
 				Platform.SetRenderer(child, Platform.CreateRenderer(child));
 
 			IVisualElementRenderer renderer = Platform.GetRenderer(child);
-			renderer.ViewGroup.RemoveFromParent();
+			renderer.View.RemoveFromParent();
 
 			ViewGroup frame = new PageContainer(_context, renderer);
 
@@ -117,7 +120,7 @@ namespace Xamarin.Forms.Platform.Android
 		{
 			if (disposing && _page != null)
 			{
-				foreach (Element element in _page.LogicalChildren)
+				foreach (Element element in ElementController.LogicalChildren)
 				{
 					var childPage = element as VisualElement;
 
@@ -127,7 +130,7 @@ namespace Xamarin.Forms.Platform.Android
 					IVisualElementRenderer childPageRenderer = Platform.GetRenderer(childPage);
 					if (childPageRenderer != null)
 					{
-						childPageRenderer.ViewGroup.RemoveFromParent();
+						childPageRenderer.View.RemoveFromParent();
 						childPageRenderer.Dispose();
 						Platform.SetRenderer(childPage, null);
 					}

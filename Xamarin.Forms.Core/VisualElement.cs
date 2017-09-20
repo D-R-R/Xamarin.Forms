@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using Xamarin.Forms.Internals;
 
 namespace Xamarin.Forms
 {
@@ -85,7 +87,8 @@ namespace Xamarin.Forms
 
 		public static readonly BindableProperty MinimumHeightRequestProperty = BindableProperty.Create("MinimumHeightRequest", typeof(double), typeof(VisualElement), -1d, propertyChanged: OnRequestChanged);
 
-		internal static readonly BindablePropertyKey IsFocusedPropertyKey = BindableProperty.CreateReadOnly("IsFocused", typeof(bool), typeof(VisualElement), default(bool),
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public static readonly BindablePropertyKey IsFocusedPropertyKey = BindableProperty.CreateReadOnly("IsFocused", typeof(bool), typeof(VisualElement), default(bool),
 			propertyChanged: OnIsFocusedPropertyChanged);
 
 		public static readonly BindableProperty IsFocusedProperty = IsFocusedPropertyKey.BindableProperty;
@@ -295,7 +298,8 @@ namespace Xamarin.Forms
 			private set { SetValue(YPropertyKey, value); }
 		}
 
-		internal bool Batched
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public bool Batched
 		{
 			get { return _batched > 0; }
 		}
@@ -321,9 +325,11 @@ namespace Xamarin.Forms
 			get { return ComputedConstraint | SelfConstraint; }
 		}
 
-		internal bool DisableLayout { get; set; }
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public bool DisableLayout { get; set; }
 
-		internal bool IsInNativeLayout
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public bool IsInNativeLayout
 		{
 			get
 			{
@@ -331,12 +337,11 @@ namespace Xamarin.Forms
 					return true;
 
 				Element parent = RealParent;
-				while (parent != null)
+				if (parent != null)
 				{
 					var visualElement = parent as VisualElement;
 					if (visualElement != null && visualElement.IsInNativeLayout)
 						return true;
-					parent = parent.RealParent;
 				}
 
 				return false;
@@ -344,7 +349,8 @@ namespace Xamarin.Forms
 			set { _isInNativeLayout = value; }
 		}
 
-		internal bool IsNativeStateConsistent
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public bool IsNativeStateConsistent
 		{
 			get { return _isNativeStateConsistent; }
 			set
@@ -353,11 +359,12 @@ namespace Xamarin.Forms
 					return;
 				_isNativeStateConsistent = value;
 				if (value && IsPlatformEnabled)
-					InvalidateMeasure(InvalidationTrigger.RendererReady);
+					InvalidateMeasureInternal(InvalidationTrigger.RendererReady);
 			}
 		}
 
-		internal bool IsPlatformEnabled
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public bool IsPlatformEnabled
 		{
 			get { return _isPlatformEnabled; }
 			set
@@ -367,13 +374,14 @@ namespace Xamarin.Forms
 
 				_isPlatformEnabled = value;
 				if (value && IsNativeStateConsistent)
-					InvalidateMeasure(InvalidationTrigger.RendererReady);
+					InvalidateMeasureInternal(InvalidationTrigger.RendererReady);
 
 				OnIsPlatformEnabledChanged();
 			}
 		}
 
-		internal NavigationProxy NavigationProxy
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public NavigationProxy NavigationProxy
 		{
 			get { return Navigation as NavigationProxy; }
 		}
@@ -426,9 +434,10 @@ namespace Xamarin.Forms
 			}
 		}
 
-		void IVisualElementController.NativeSizeChanged()
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void NativeSizeChanged()
 		{
-			InvalidateMeasure(InvalidationTrigger.MeasureChanged);
+			InvalidateMeasureInternal(InvalidationTrigger.MeasureChanged);
 		}
 
 		public event EventHandler ChildrenReordered;
@@ -448,7 +457,7 @@ namespace Xamarin.Forms
 
 		public event EventHandler<FocusEventArgs> Focused;
 
-		[Obsolete("Use Measure")]
+		[Obsolete("OnSizeRequest is obsolete as of version 2.2.0. Please use OnMeasure instead.")]
 		public virtual SizeRequest GetSizeRequest(double widthConstraint, double heightConstraint)
 		{
 			SizeRequest cachedResult;
@@ -561,7 +570,7 @@ namespace Xamarin.Forms
 
 		protected virtual void InvalidateMeasure()
 		{
-			InvalidateMeasure(InvalidationTrigger.MeasureChanged);
+			InvalidateMeasureInternal(InvalidationTrigger.MeasureChanged);
 		}
 
 		protected override void OnChildAdded(Element child)
@@ -613,7 +622,7 @@ namespace Xamarin.Forms
 		{
 		}
 
-		[Obsolete("Use OnMeasure")]
+		[Obsolete("OnSizeRequest is obsolete as of version 2.2.0. Please use OnMeasure instead.")]
 		protected virtual SizeRequest OnSizeRequest(double widthConstraint, double heightConstraint)
 		{
 			if (Platform == null || !IsPlatformEnabled)
@@ -628,13 +637,14 @@ namespace Xamarin.Forms
 			OnSizeAllocated(width, height);
 		}
 
-		internal event EventHandler<EventArg<VisualElement>> BatchCommitted;
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public event EventHandler<EventArg<VisualElement>> BatchCommitted;
 
 		internal void ComputeConstrainsForChildren()
 		{
-			for (var i = 0; i < LogicalChildren.Count; i++)
+			for (var i = 0; i < LogicalChildrenInternal.Count; i++)
 			{
-				var child = LogicalChildren[i] as View;
+				var child = LogicalChildrenInternal[i] as View;
 				if (child != null)
 					ComputeConstraintForView(child);
 			}
@@ -645,12 +655,23 @@ namespace Xamarin.Forms
 			view.ComputedConstraint = LayoutConstraint.None;
 		}
 
-		internal event EventHandler<FocusRequestArgs> FocusChangeRequested;
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public event EventHandler<FocusRequestArgs> FocusChangeRequested;
 
-		internal virtual void InvalidateMeasure(InvalidationTrigger trigger)
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void InvalidateMeasureNonVirtual(InvalidationTrigger trigger)
+		{
+			InvalidateMeasureInternal(trigger);
+		}
+		internal virtual void InvalidateMeasureInternal(InvalidationTrigger trigger)
 		{
 			_measureCache.Clear();
 			MeasureInvalidated?.Invoke(this, new InvalidationEventArgs(trigger));
+		}
+
+		void IVisualElementController.InvalidateMeasure(InvalidationTrigger trigger)
+		{
+			InvalidateMeasureInternal(trigger);
 		}
 
 		internal void MockBounds(Rectangle bounds)
@@ -672,7 +693,7 @@ namespace Xamarin.Forms
 
 		internal virtual void OnIsVisibleChanged(bool oldValue, bool newValue)
 		{
-			InvalidateMeasure(InvalidationTrigger.Undefined);
+			InvalidateMeasureInternal(InvalidationTrigger.Undefined);
 		}
 
 		internal override void OnParentResourcesChanged(IEnumerable<KeyValuePair<string, object>> values)
@@ -746,7 +767,7 @@ namespace Xamarin.Forms
 			}
 
 			element.SelfConstraint = constraint;
-			((VisualElement)bindable).InvalidateMeasure(InvalidationTrigger.SizeRequestChanged);
+			((VisualElement)bindable).InvalidateMeasureInternal(InvalidationTrigger.SizeRequestChanged);
 		}
 
 		void OnUnfocus()
@@ -769,7 +790,7 @@ namespace Xamarin.Forms
 				SizeChanged(this, EventArgs.Empty);
 		}
 
-		internal class FocusRequestArgs : EventArgs
+		public class FocusRequestArgs : EventArgs
 		{
 			public bool Focus { get; set; }
 

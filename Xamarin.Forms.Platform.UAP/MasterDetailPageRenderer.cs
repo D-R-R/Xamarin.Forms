@@ -6,6 +6,8 @@ using Windows.UI.Xaml.Automation;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Data;
 using Windows.UI.Xaml.Media;
+using Xamarin.Forms.PlatformConfiguration.WindowsSpecific;
+using Specifics = Xamarin.Forms.PlatformConfiguration.WindowsSpecific.MasterDetailPage;
 
 namespace Xamarin.Forms.Platform.UWP
 {
@@ -64,11 +66,9 @@ namespace Xamarin.Forms.Platform.UWP
 			{
 				if (_showTitle == value)
 					return;
+
 				_showTitle = value;
-				if (_showTitle)
-					Control.DetailTitleVisibility = Visibility.Visible;
-				else
-					Control.DetailTitleVisibility = Visibility.Collapsed;
+				Control.DetailTitleVisibility = _showTitle ? Visibility.Visible : Visibility.Collapsed;
 			}
 		}
 
@@ -108,6 +108,11 @@ namespace Xamarin.Forms.Platform.UWP
 			return new SizeRequest(new Size(size.Width, size.Height));
 		}
 
+		UIElement IVisualElementRenderer.GetNativeElement()
+		{
+			return Control;
+		}
+
 		public void SetElement(VisualElement element)
 		{
 			MasterDetailPage old = Element;
@@ -128,7 +133,7 @@ namespace Xamarin.Forms.Platform.UWP
 				{
 					Control = new MasterDetailControl();
 					Control.Loaded += OnControlLoaded;
-					Control.Unloaded += OnControlUnlaoded;
+					Control.Unloaded += OnControlUnloaded;
 					Control.SizeChanged += OnNativeSizeChanged;
 
 					Control.RegisterPropertyChangedCallback(MasterDetailControl.IsPaneOpenProperty, OnIsPaneOpenChanged);
@@ -137,26 +142,33 @@ namespace Xamarin.Forms.Platform.UWP
 				}
 
 				e.NewElement.PropertyChanged += OnElementPropertyChanged;
+				UpdateMode();
 				UpdateDetail();
 				UpdateMaster();
-				UpdateMode();
 				UpdateIsPresented();
 
 				if (!string.IsNullOrEmpty(e.NewElement.AutomationId))
-					Control.SetValue(AutomationProperties.AutomationIdProperty, e.NewElement.AutomationId);
+					Control.SetValue(Windows.UI.Xaml.Automation.AutomationProperties.AutomationIdProperty, e.NewElement.AutomationId);
+
+				((ITitleProvider)this).BarBackgroundBrush = (Brush)Windows.UI.Xaml.Application.Current.Resources["SystemControlBackgroundChromeMediumLowBrush"];
+				UpdateToolbarPlacement();
 			}
 		}
 
 		protected virtual void OnElementPropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
-			if (e.PropertyName == MasterDetailPage.IsPresentedProperty.PropertyName)
+			if (e.PropertyName == MasterDetailPage.IsPresentedProperty.PropertyName || e.PropertyName == MasterDetailPage.MasterBehaviorProperty.PropertyName)
 				UpdateIsPresented();
 			else if (e.PropertyName == "Master")
 				UpdateMaster();
 			else if (e.PropertyName == "Detail")
 				UpdateDetail();
-			else if (e.PropertyName == "ShouldShowSplitMode")
+			else if (e.PropertyName == nameof(MasterDetailControl.ShouldShowSplitMode)
+			         || e.PropertyName == Specifics.CollapseStyleProperty.PropertyName
+			         || e.PropertyName == Specifics.CollapsedPaneWidthProperty.PropertyName)
 				UpdateMode();
+			else if(e.PropertyName ==  PlatformConfiguration.WindowsSpecific.Page.ToolbarPlacementProperty.PropertyName)
+				UpdateToolbarPlacement();
 		}
 
 		void ClearDetail()
@@ -198,12 +210,9 @@ namespace Xamarin.Forms.Platform.UWP
 			UpdateBounds();
 		}
 
-		void OnControlUnlaoded(object sender, RoutedEventArgs routedEventArgs)
+		void OnControlUnloaded(object sender, RoutedEventArgs routedEventArgs)
 		{
-			if (Element == null)
-				return;
-
-			Element.SendDisappearing();
+			Element?.SendDisappearing();
 		}
 
 		void OnDetailPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -251,6 +260,8 @@ namespace Xamarin.Forms.Platform.UWP
 
 				IVisualElementRenderer renderer = _detail.GetOrCreateRenderer();
 				element = renderer.ContainerElement;
+
+				UpdateToolbarVisibilty();
 			}
 
 			Control.Detail = element;
@@ -263,10 +274,16 @@ namespace Xamarin.Forms.Platform.UWP
 				return;
 
 			Control.DetailTitle = (_detail as NavigationPage)?.CurrentPage?.Title ?? _detail.Title ?? Element?.Title;
+			(this as ITitleProvider).ShowTitle = !string.IsNullOrEmpty(Control.DetailTitle);
 		}
 
 		void UpdateIsPresented()
 		{
+			// Ignore the IsPresented value being set to false for Split mode on desktop and allow the master
+			// view to be made initially visible
+			if (Device.Idiom == TargetIdiom.Desktop && Control.IsPaneOpen && Element.MasterBehavior != MasterBehavior.Popover)
+				return;
+
 			Control.IsPaneOpen = Element.IsPresented;
 		}
 
@@ -286,14 +303,29 @@ namespace Xamarin.Forms.Platform.UWP
 
 			Control.Master = element;
 			Control.MasterTitle = _master?.Title;
+
+			UpdateToolbarVisibilty();
 		}
 
 		void UpdateMode()
 		{
+			UpdateDetailTitle();
+			Control.CollapseStyle = Element.OnThisPlatform().GetCollapseStyle();
+			Control.CollapsedPaneWidth = Element.OnThisPlatform().CollapsedPaneWidth();
 			Control.ShouldShowSplitMode = Element.ShouldShowSplitMode;
 		}
 
-#if WINDOWS_UWP
+		void UpdateToolbarPlacement()
+		{
+			Control.ToolbarPlacement = Element.OnThisPlatform().GetToolbarPlacement();
+		}
+
+		void UpdateToolbarVisibilty()
+		{
+			// Enforce consistency rules on toolbar
+			Control.ShouldShowToolbar = _detail is NavigationPage || _master is NavigationPage;
+		}
+
 		public void BindForegroundColor(AppBar appBar)
 		{
 			SetAppBarForegroundBinding(appBar);
@@ -309,6 +341,5 @@ namespace Xamarin.Forms.Platform.UWP
 			element.SetBinding(Windows.UI.Xaml.Controls.Control.ForegroundProperty,
 				new Windows.UI.Xaml.Data.Binding { Path = new PropertyPath("Control.ToolbarForeground"), Source = this, RelativeSource = new RelativeSource { Mode = RelativeSourceMode.TemplatedParent } });
 		}
-#endif
 	}
 }

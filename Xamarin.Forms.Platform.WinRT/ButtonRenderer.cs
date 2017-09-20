@@ -1,12 +1,14 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
+using Xamarin.Forms.Internals;
 using WThickness = Windows.UI.Xaml.Thickness;
 using WButton = Windows.UI.Xaml.Controls.Button;
 using WImage = Windows.UI.Xaml.Controls.Image;
+using Windows.UI.Xaml.Input;
 
 #if WINDOWS_UWP
 
@@ -30,6 +32,7 @@ namespace Xamarin.Forms.Platform.WinRT
 				{
 					var button = new FormsButton();
 					button.Click += OnButtonClick;
+					button.AddHandler(PointerPressedEvent, new PointerEventHandler(OnPointerPressed), true);
 					SetNativeControl(button);
 				}
 
@@ -44,7 +47,7 @@ namespace Xamarin.Forms.Platform.WinRT
 				if (Element.BorderColor != Color.Default)
 					UpdateBorderColor();
 
-				if (Element.BorderWidth != 0)
+				if (Element.BorderWidth != (double)Button.BorderWidthProperty.DefaultValue)
 					UpdateBorderWidth();
 
 				if (Element.BorderRadius != (int)Button.BorderRadiusProperty.DefaultValue)
@@ -96,14 +99,20 @@ namespace Xamarin.Forms.Platform.WinRT
 			return;
 		}
 
+		protected override bool PreventGestureBubbling { get; set; } = true;
+
 		void OnButtonClick(object sender, RoutedEventArgs e)
 		{
-			Button buttonView = Element;
-			if (buttonView != null)
-				((IButtonController)buttonView).SendClicked();
+			((IButtonController)Element)?.SendReleased();
+			((IButtonController)Element)?.SendClicked();
 		}
 
-		void UpdateBackground()
+		void OnPointerPressed(object sender, RoutedEventArgs e)
+		{
+			((IButtonController)Element)?.SendPressed();
+		}
+
+			void UpdateBackground()
 		{
 			Control.BackgroundColor = Element.BackgroundColor != Color.Default ? Element.BackgroundColor.ToBrush() : (Brush)Windows.UI.Xaml.Application.Current.Resources["ButtonBackgroundThemeBrush"];
 		}
@@ -120,7 +129,7 @@ namespace Xamarin.Forms.Platform.WinRT
 
 		void UpdateBorderWidth()
 		{
-			Control.BorderThickness = Element.BorderWidth == 0d ? new WThickness(3) : new WThickness(Element.BorderWidth);
+			Control.BorderThickness = Element.BorderWidth == (double)Button.BorderWidthProperty.DefaultValue ? new WThickness(3) : new WThickness(Element.BorderWidth);
 		}
 
 		void UpdateContent()
@@ -135,13 +144,20 @@ namespace Xamarin.Forms.Platform.WinRT
 				return;
 			}
 
+			var bmp = new BitmapImage(new Uri("ms-appx:///" + elementImage.File));
+
 			var image = new WImage
 			{
-				Source = new BitmapImage(new Uri("ms-appx:///" + elementImage.File)),
-				Width = 30,
-				Height = 30,
+				Source = bmp,
 				VerticalAlignment = VerticalAlignment.Center,
-				HorizontalAlignment = HorizontalAlignment.Center
+				HorizontalAlignment = HorizontalAlignment.Center,
+				Stretch = Stretch.Uniform
+			};
+
+			bmp.ImageOpened += (sender, args) => {
+				image.Width = bmp.PixelWidth;
+				image.Height = bmp.PixelHeight;
+				Element.InvalidateMeasureNonVirtual(InvalidationTrigger.RendererReady);
 			};
 
 			// No text, just the image
@@ -152,10 +168,13 @@ namespace Xamarin.Forms.Platform.WinRT
 			}
 
 			// Both image and text, so we need to build a container for them
-			var layout = Element.ContentLayout;
+			Control.Content = CreateContentContainer(Element.ContentLayout, image, text);
+		}
+
+		static StackPanel CreateContentContainer(Button.ButtonContentLayout layout, WImage image, string text)
+		{
 			var container = new StackPanel();
-			var textBlock = new TextBlock
-			{
+			var textBlock = new TextBlock {
 				Text = text,
 				VerticalAlignment = VerticalAlignment.Center,
 				HorizontalAlignment = HorizontalAlignment.Center
@@ -195,8 +214,7 @@ namespace Xamarin.Forms.Platform.WinRT
 					break;
 			}
 
-			Control.Content = container;
-
+			return container;
 		}
 
 		void UpdateFont()

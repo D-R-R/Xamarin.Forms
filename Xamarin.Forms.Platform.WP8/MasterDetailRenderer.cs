@@ -22,6 +22,8 @@ namespace Xamarin.Forms.Platform.WinPhone
 
 		public bool Visible { get; private set; }
 
+		IPageController PageController => (base.Element as IPageController);
+
 		protected override System.Windows.Size ArrangeOverride(System.Windows.Size finalSize)
 		{
 			UpdateSizes(finalSize.Width, finalSize.Height);
@@ -45,16 +47,16 @@ namespace Xamarin.Forms.Platform.WinPhone
 
 			Loaded += (sender, args) =>
 			{
-				if (Element.IsPresented)
+				if (base.Element.IsPresented)
 					Toggle();
-				Element.SendAppearing();
+				PageController.SendAppearing();
 			};
 			Unloaded += (sender, args) =>
 			{
-				Element.SendDisappearing();
+				PageController.SendDisappearing();
 				if (Visible)
 				{
-					var platform = (Platform)Element.Platform;
+					var platform = (Platform)base.Element.Platform;
 					Canvas container = platform.GetCanvas();
 
 					container.Children.Remove(_popup);
@@ -78,7 +80,7 @@ namespace Xamarin.Forms.Platform.WinPhone
 			}
 			else if (e.PropertyName == MasterDetailPage.IsPresentedProperty.PropertyName)
 			{
-				if (Visible == Element.IsPresented)
+				if (Visible == base.Element.IsPresented)
 					return;
 				Toggle();
 			}
@@ -86,7 +88,7 @@ namespace Xamarin.Forms.Platform.WinPhone
 
 		internal void Toggle()
 		{
-			var platform = Element.Platform as Platform;
+			var platform = base.Element.Platform as Platform;
 			Canvas container = platform.GetCanvas();
 
 			if (_toggleTransition != null)
@@ -120,7 +122,7 @@ namespace Xamarin.Forms.Platform.WinPhone
 
 			Visible = !Visible;
 
-			((IElementController)Element).SetValueFromRenderer(MasterDetailPage.IsPresentedProperty, Visible);
+			((IElementController)base.Element).SetValueFromRenderer(MasterDetailPage.IsPresentedProperty, Visible);
 		}
 
 		void HandleBackButtonPressed(object sender, BackButtonPressedEventArgs e)
@@ -137,7 +139,7 @@ namespace Xamarin.Forms.Platform.WinPhone
 			if (_detailRenderer != null)
 				Children.Remove(_detailRenderer.ContainerElement);
 
-			Page detail = Element.Detail;
+			Page detail = base.Element.Detail;
 			if (Platform.GetRenderer(detail) == null)
 				Platform.SetRenderer(detail, Platform.CreateRenderer(detail));
 
@@ -153,7 +155,7 @@ namespace Xamarin.Forms.Platform.WinPhone
 			if (_masterRenderer != null && _popup != null)
 				_popup.Child = null;
 
-			Page master = Element.Master;
+			Page master = base.Element.Master;
 			if (Platform.GetRenderer(master) == null)
 				Platform.SetRenderer(master, Platform.CreateRenderer(master));
 
@@ -168,7 +170,7 @@ namespace Xamarin.Forms.Platform.WinPhone
 			if (width <= 0 || height <= 0)
 				return;
 
-			var platform = Element.Platform as Platform;
+			var platform = base.Element.Platform as Platform;
 			Size screenSize = platform.Size;
 			Element.MasterBounds = new Rectangle(0, 0, screenSize.Width - 20, screenSize.Height - 20);
 			Element.DetailBounds = new Rectangle(0, 0, width, height);

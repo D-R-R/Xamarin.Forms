@@ -1,8 +1,12 @@
+using Xamarin.Forms.Internals;
+
 namespace Xamarin.Forms
 {
 	[TypeConverter(typeof(KeyboardTypeConverter))]
 	public class Keyboard
 	{
+		static Keyboard s_plain;
+
 		static Keyboard s_def;
 
 		static Keyboard s_email;
@@ -21,8 +25,12 @@ namespace Xamarin.Forms
 		{
 		}
 
-		public static Keyboard Chat
+		public static Keyboard Plain
 		{
+			get { return s_plain ?? (s_plain = new CustomKeyboard(KeyboardFlags.None)); }
+		}
+
+		public static Keyboard Chat {
 			get { return s_chat ?? (s_chat = new ChatKeyboard()); }
 		}
 

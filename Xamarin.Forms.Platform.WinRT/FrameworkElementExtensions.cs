@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media;
+using Xamarin.Forms.Internals;
 using WBinding = Windows.UI.Xaml.Data.Binding;
 using WBindingExpression = Windows.UI.Xaml.Data.BindingExpression;
 
@@ -71,6 +74,23 @@ namespace Xamarin.Forms.Platform.WinRT
 			element.SetBinding(GetForegroundProperty(element), binding);
 		}
 
+		internal static IEnumerable<T> GetDescendantsByName<T>(this DependencyObject parent, string elementName) where T : DependencyObject
+		{
+			int myChildrenCount = VisualTreeHelper.GetChildrenCount(parent);
+			for (int i = 0; i < myChildrenCount; i++)
+			{
+				var child = VisualTreeHelper.GetChild(parent, i);
+				var controlName = child.GetValue(FrameworkElement.NameProperty) as string;
+				if (controlName == elementName && child is T)
+					yield return child as T;
+				else
+				{
+					foreach (var subChild in child.GetDescendantsByName<T>(elementName))
+						yield return subChild;
+				}
+			}
+		}
+
 		internal static T GetFirstDescendant<T>(this DependencyObject element) where T : FrameworkElement
 		{
 			int count = VisualTreeHelper.GetChildrenCount(element);
@@ -98,7 +118,7 @@ namespace Xamarin.Forms.Platform.WinRT
 			DependencyProperty foregroundProperty;
 			if (!ForegroundProperties.Value.TryGetValue(type, out foregroundProperty))
 			{
-				FieldInfo field = type.GetFields().FirstOrDefault(f => f.Name == "ForegroundProperty");
+				FieldInfo field = ReflectionExtensions.GetFields(type).FirstOrDefault(f => f.Name == "ForegroundProperty");
 				if (field == null)
 					throw new ArgumentException("type is not a Foregroundable type");
 
@@ -109,6 +129,22 @@ namespace Xamarin.Forms.Platform.WinRT
 			}
 
 			return foregroundProperty;
+		}
+
+		internal static IEnumerable<T> GetChildren<T>(this DependencyObject parent) where T : DependencyObject
+		{
+			int myChildrenCount = VisualTreeHelper.GetChildrenCount(parent);
+			for (int i = 0; i < myChildrenCount; i++)
+			{
+				var child = VisualTreeHelper.GetChild(parent, i);
+				if (child is T)
+					yield return child as T;
+				else
+				{
+					foreach (var subChild in child.GetChildren<T>())
+						yield return subChild;
+				}
+			}
 		}
 	}
 }

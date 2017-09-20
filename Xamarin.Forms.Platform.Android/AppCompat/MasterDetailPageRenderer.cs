@@ -3,10 +3,12 @@ using System.ComponentModel;
 using System.Threading.Tasks;
 using Android.Support.V4.Widget;
 using Android.Views;
+using Android.Support.V4.App;
+using AView = Android.Views.View;
 
 namespace Xamarin.Forms.Platform.Android.AppCompat
 {
-	public class MasterDetailPageRenderer : DrawerLayout, IVisualElementRenderer, DrawerLayout.IDrawerListener
+	public class MasterDetailPageRenderer : DrawerLayout, IVisualElementRenderer, DrawerLayout.IDrawerListener, IManageFragments
 	{
 		#region Statics
 
@@ -17,18 +19,20 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 
 		int _currentLockMode = -1;
 		MasterDetailContainer _detailLayout;
-
+		MasterDetailContainer _masterLayout;
 		bool _disposed;
 		bool _isPresentingFromCore;
-		MasterDetailContainer _masterLayout;
 		bool _presented;
 		VisualElementTracker _tracker;
+		FragmentManager _fragmentManager;
 
 		public MasterDetailPageRenderer() : base(Forms.Context)
 		{
 		}
 
 		MasterDetailPage Element { get; set; }
+
+		IMasterDetailPageController MasterDetailPageController => Element as IMasterDetailPageController;
 
 		bool Presented
 		{
@@ -39,7 +43,7 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 					return;
 				UpdateSplitViewLayout();
 				_presented = value;
-				if (Element.MasterBehavior == MasterBehavior.Default && Element.ShouldShowSplitMode)
+				if (Element.MasterBehavior == MasterBehavior.Default && MasterDetailPageController.ShouldShowSplitMode)
 					return;
 				if (_presented)
 					OpenDrawer(_masterLayout);
@@ -47,6 +51,10 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 					CloseDrawer(_masterLayout);
 			}
 		}
+
+		IPageController MasterPageController => Element.Master as IPageController;
+		IPageController DetailPageController => Element.Detail as IPageController;
+		IPageController PageController => Element as IPageController;
 
 		void IDrawerListener.OnDrawerClosed(global::Android.Views.View drawerView)
 		{
@@ -66,12 +74,24 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 			UpdateIsPresented();
 		}
 
+		void IManageFragments.SetFragmentManager(FragmentManager fragmentManager)
+		{
+			if (_fragmentManager == null)
+				_fragmentManager = fragmentManager;
+		}
+
 		VisualElement IVisualElementRenderer.Element => Element;
 
 		event EventHandler<VisualElementChangedEventArgs> IVisualElementRenderer.ElementChanged
 		{
 			add { ElementChanged += value; }
 			remove { ElementChanged -= value; }
+		}
+
+		event EventHandler<PropertyChangedEventArgs> IVisualElementRenderer.ElementPropertyChanged
+		{
+			add { ElementPropertyChanged += value; }
+			remove { ElementPropertyChanged -= value; }
 		}
 
 		SizeRequest IVisualElementRenderer.GetDesiredSize(int widthConstraint, int heightConstraint)
@@ -87,15 +107,11 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 
 			if (oldElement != null)
 			{
-				oldElement.BackButtonPressed -= OnBackButtonPressed;
+				((IMasterDetailPageController)oldElement).BackButtonPressed -= OnBackButtonPressed;
 				oldElement.PropertyChanged -= HandlePropertyChanged;
 				oldElement.Appearing -= MasterDetailPageAppearing;
 				oldElement.Disappearing -= MasterDetailPageDisappearing;
 			}
-
-			var statusBarHeight = 0;
-			if (Forms.IsLollipopOrNewer)
-				statusBarHeight = ((FormsAppCompatActivity)Context).GetStatusBarHeight();
 
 			if (newElement != null)
 			{
@@ -103,7 +119,6 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 				{
 					_detailLayout = new MasterDetailContainer(newElement, false, Context)
 					{
-						TopPadding = statusBarHeight,
 						LayoutParameters = new LayoutParams(ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent)
 					};
 
@@ -111,6 +126,12 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 					{
 						LayoutParameters = new LayoutParams(ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent) { Gravity = (int)GravityFlags.Start }
 					};
+
+					if (_fragmentManager != null)
+					{
+						_detailLayout.SetFragmentManager(_fragmentManager);
+						_masterLayout.SetFragmentManager(_fragmentManager);
+					}
 
 					AddView(_detailLayout);
 					AddView(_masterLayout);
@@ -126,7 +147,7 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 				UpdateMaster();
 				UpdateDetail();
 
-				newElement.BackButtonPressed += OnBackButtonPressed;
+				((IMasterDetailPageController)newElement).BackButtonPressed += OnBackButtonPressed;
 				newElement.PropertyChanged += HandlePropertyChanged;
 				newElement.Appearing += MasterDetailPageAppearing;
 				newElement.Disappearing += MasterDetailPageDisappearing;
@@ -145,6 +166,10 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 				_tracker = new VisualElementTracker(this);
 		}
 
+		void IVisualElementRenderer.SetLabelFor(int? id)
+		{
+		}
+
 		VisualElementTracker IVisualElementRenderer.Tracker => _tracker;
 
 		void IVisualElementRenderer.UpdateLayout()
@@ -153,6 +178,8 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 		}
 
 		ViewGroup IVisualElementRenderer.ViewGroup => this;
+
+		AView IVisualElementRenderer.View => this;
 
 		protected override void Dispose(bool disposing)
 		{
@@ -168,24 +195,29 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 
 				if (_detailLayout != null)
 				{
+					RemoveView(_detailLayout);
 					_detailLayout.Dispose();
 					_detailLayout = null;
 				}
 
 				if (_masterLayout != null)
 				{
+					RemoveView(_masterLayout);
 					_masterLayout.Dispose();
 					_masterLayout = null;
 				}
 
 				Device.Info.PropertyChanged -= DeviceInfoPropertyChanged;
 
+				RemoveDrawerListener(this);
+
 				if (Element != null)
 				{
-					Element.BackButtonPressed -= OnBackButtonPressed;
+					MasterDetailPageController.BackButtonPressed -= OnBackButtonPressed;
 					Element.PropertyChanged -= HandlePropertyChanged;
 					Element.Appearing -= MasterDetailPageAppearing;
 					Element.Disappearing -= MasterDetailPageDisappearing;
+
 					Element.ClearValue(Android.Platform.RendererProperty);
 					Element = null;
 				}
@@ -197,13 +229,13 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 		protected override void OnAttachedToWindow()
 		{
 			base.OnAttachedToWindow();
-			Element.SendAppearing();
+			PageController.SendAppearing();
 		}
 
 		protected override void OnDetachedFromWindow()
 		{
 			base.OnDetachedFromWindow();
-			Element.SendDisappearing();
+			PageController.SendDisappearing();
 		}
 
 		protected virtual void OnElementChanged(VisualElement oldElement, VisualElement newElement)
@@ -215,7 +247,7 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 		{
 			base.OnLayout(changed, l, t, r, b);
 			//hack to make the split layout handle touches the full width
-			if (Element.ShouldShowSplitMode && _masterLayout != null)
+			if (MasterDetailPageController.ShouldShowSplitMode && _masterLayout != null)
 				_masterLayout.Right = r;
 		}
 
@@ -223,9 +255,9 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 		{
 			if (nameof(Device.Info.CurrentOrientation) == e.PropertyName)
 			{
-				if (!Element.ShouldShowSplitMode && Presented)
+				if (!MasterDetailPageController.ShouldShowSplitMode && Presented)
 				{
-					Element.CanChangeIsPresented = true;
+					MasterDetailPageController.CanChangeIsPresented = true;
 					//hack : when the orientation changes and we try to close the Master on Android		
 					//sometimes Android picks the width of the screen previous to the rotation 		
 					//this leaves a little of the master visible, the hack is to delay for 50ms closing the drawer
@@ -237,6 +269,17 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 		}
 
 		event EventHandler<VisualElementChangedEventArgs> ElementChanged;
+		event EventHandler<PropertyChangedEventArgs> ElementPropertyChanged;
+
+		bool HasAncestorNavigationPage(Element element)
+		{
+			if (element.Parent == null)
+				return false;
+			else if (element.Parent is NavigationPage)
+				return true;
+			else
+				return HasAncestorNavigationPage(element.Parent);
+		}
 
 		void HandleMasterPropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
@@ -244,11 +287,12 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 
 		void HandlePropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
+			ElementPropertyChanged?.Invoke(this, e);
 			if (e.PropertyName == "Master")
 				UpdateMaster();
 			else if (e.PropertyName == "Detail")
 				UpdateDetail();
-			else if (e.PropertyName == "IsGestureEnabled")
+			else if (e.PropertyName == MasterDetailPage.IsGestureEnabledProperty.PropertyName)
 				SetGestureState();
 			else if (e.PropertyName == MasterDetailPage.IsPresentedProperty.PropertyName)
 			{
@@ -264,14 +308,14 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 
 		void MasterDetailPageAppearing(object sender, EventArgs e)
 		{
-			Element.Master?.SendAppearing();
-			Element.Detail?.SendAppearing();
+			MasterPageController?.SendAppearing();
+			DetailPageController?.SendAppearing();
 		}
 
 		void MasterDetailPageDisappearing(object sender, EventArgs e)
 		{
-			Element.Master?.SendDisappearing();
-			Element.Detail?.SendDisappearing();
+			MasterPageController?.SendDisappearing();
+			DetailPageController?.SendDisappearing();
 		}
 
 		void OnBackButtonPressed(object sender, BackButtonPressedEventArgs backButtonPressedEventArgs)
@@ -327,7 +371,7 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 
 		void UpdateMaster()
 		{
-			MasterDetailContainer masterContainer = _masterLayout;
+			Android.MasterDetailContainer masterContainer = _masterLayout;
 			if (masterContainer == null)
 				return;
 
@@ -343,7 +387,7 @@ namespace Xamarin.Forms.Platform.Android.AppCompat
 		{
 			if (Device.Idiom == TargetIdiom.Tablet)
 			{
-				bool isShowingSplit = Element.ShouldShowSplitMode || (Element.ShouldShowSplitMode && Element.MasterBehavior != MasterBehavior.Default && Element.IsPresented);
+				bool isShowingSplit = MasterDetailPageController.ShouldShowSplitMode || (MasterDetailPageController.ShouldShowSplitMode && Element.MasterBehavior != MasterBehavior.Default && Element.IsPresented);
 				SetLockMode(isShowingSplit ? LockModeLockedOpen : LockModeUnlocked);
 				unchecked
 				{

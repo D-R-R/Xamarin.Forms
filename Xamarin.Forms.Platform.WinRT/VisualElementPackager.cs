@@ -42,7 +42,15 @@ namespace Xamarin.Forms.Platform.WinRT
 			_columnSpan = columnSpan;
 		}
 
+		IElementController ElementController => _renderer.Element as IElementController;
+
 		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		protected virtual void Dispose(bool disposing)
 		{
 			if (_disposed)
 				return;
@@ -54,6 +62,7 @@ namespace Xamarin.Forms.Platform.WinRT
 			{
 				element.ChildAdded -= OnChildAdded;
 				element.ChildRemoved -= OnChildRemoved;
+				element.ChildrenReordered -= OnChildrenReordered;
 			}
 		}
 
@@ -65,8 +74,9 @@ namespace Xamarin.Forms.Platform.WinRT
 			_isLoaded = true;
 			_renderer.Element.ChildAdded += OnChildAdded;
 			_renderer.Element.ChildRemoved += OnChildRemoved;
+			_renderer.Element.ChildrenReordered += OnChildrenReordered;
 
-			ReadOnlyCollection<Element> children = _renderer.Element.LogicalChildren;
+			ReadOnlyCollection<Element> children = ElementController.LogicalChildren;
 			for (var i = 0; i < children.Count; i++)
 			{
 				OnChildAdded(_renderer.Element, new ElementEventArgs(children[i]));
@@ -75,12 +85,12 @@ namespace Xamarin.Forms.Platform.WinRT
 
 		void EnsureZIndex()
 		{
-			if (_renderer.Element.LogicalChildren.Count == 0)
+			if (ElementController.LogicalChildren.Count == 0)
 				return;
 
-			for (var z = 0; z < _renderer.Element.LogicalChildren.Count; z++)
+			for (var z = 0; z < ElementController.LogicalChildren.Count; z++)
 			{
-				var child = _renderer.Element.LogicalChildren[z] as VisualElement;
+				var child = ElementController.LogicalChildren[z] as VisualElement;
 				if (child == null)
 					continue;
 
@@ -142,6 +152,11 @@ namespace Xamarin.Forms.Platform.WinRT
 
 				view.Cleanup();
 			}
+		}
+
+		void OnChildrenReordered(object sender, EventArgs e)
+		{
+			EnsureZIndex();
 		}
 	}
 }

@@ -12,7 +12,7 @@ using Xamarin.UITest.Android;
 using NUnit.Framework;
 #endif
 
-namespace Xamarin.Forms.Controls
+namespace Xamarin.Forms.Controls.Issues
 {
 	[Preserve (AllMembers = true)]
 	[Issue (IssueTracker.Github, 2948, "MasterDetailPage Detail is interactive even when Master is open when in Landscape")]
@@ -217,16 +217,22 @@ namespace Xamarin.Forms.Controls
 			}
 		}
 
+		[TearDown]
+		public void TestTearDown()
+		{
+			RunningApp.SetOrientationPortrait();
+		}
+
 		public bool ShouldRunTest() {
 			var isMasterVisible = RunningApp.Query (q => q.Marked ("Leads")).Length > 0;
 			return !isMasterVisible;
 		}
 		public void OpenMDP() {
-			if (RunningApp is iOSApp) {
-				RunningApp.Tap (q => q.Marked ("Menu"));
-			} else {
-				RunningApp.Tap ("ShowMasterBtn");
-			}				
+#if __IOS__
+			RunningApp.Tap (q => q.Marked ("Menu"));
+#else
+			RunningApp.Tap ("ShowMasterBtn");
+#endif
 		}
 #endif
 	}

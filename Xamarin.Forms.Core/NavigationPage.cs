@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Xamarin.Forms.Internals;
 using Xamarin.Forms.Platform;
 
 namespace Xamarin.Forms
 {
 	[RenderWith(typeof(_NavigationPageRenderer))]
-	public class NavigationPage : Page, IPageContainer<Page>
+	public class NavigationPage : Page, IPageContainer<Page>, INavigationPageController, IElementConfiguration<NavigationPage> 
 	{
 		public static readonly BindableProperty BackButtonTitleProperty = BindableProperty.CreateAttached("BackButtonTitle", typeof(string), typeof(Page), null);
 
@@ -15,8 +18,8 @@ namespace Xamarin.Forms
 
 		public static readonly BindableProperty HasBackButtonProperty = BindableProperty.CreateAttached("HasBackButton", typeof(bool), typeof(NavigationPage), true);
 
-		[Obsolete("Use BarBackgroundColorProperty and BarTextColorProperty to change NavigationPage bar color properties")] public static readonly BindableProperty TintProperty =
-			BindableProperty.Create("Tint", typeof(Color), typeof(NavigationPage), Color.Default);
+		[Obsolete("TintProperty is obsolete as of version 1.2.0. Please use BarBackgroundColorProperty and BarTextColorProperty to change NavigationPage bar color properties.")] 
+		public static readonly BindableProperty TintProperty = BindableProperty.Create("Tint", typeof(Color), typeof(NavigationPage), Color.Default);
 
 		public static readonly BindableProperty BarBackgroundColorProperty = BindableProperty.Create("BarBackgroundColor", typeof(Color), typeof(NavigationPage), Color.Default);
 
@@ -27,8 +30,13 @@ namespace Xamarin.Forms
 		static readonly BindablePropertyKey CurrentPagePropertyKey = BindableProperty.CreateReadOnly("CurrentPage", typeof(Page), typeof(NavigationPage), null);
 		public static readonly BindableProperty CurrentPageProperty = CurrentPagePropertyKey.BindableProperty;
 
+		static readonly BindablePropertyKey RootPagePropertyKey = BindableProperty.CreateReadOnly(nameof(RootPage), typeof(Page), typeof(NavigationPage), null);
+		public static readonly BindableProperty RootPageProperty = RootPagePropertyKey.BindableProperty;
+
 		public NavigationPage()
 		{
+			_platformConfigurationRegistry = new Lazy<PlatformConfigurationRegistry<NavigationPage>>(() => new PlatformConfigurationRegistry<NavigationPage>(this));
+
 			Navigation = new NavigationImpl(this);
 		}
 
@@ -49,7 +57,7 @@ namespace Xamarin.Forms
 			set { SetValue(BarTextColorProperty, value); }
 		}
 
-		[Obsolete("Use BarBackgroundColor and BarTextColor to change NavigationPage bar color properties")]
+		[Obsolete("Tint is obsolete as of version 1.2.0. Please use BarBackgroundColor and BarTextColor to change NavigationPage bar color properties.")]
 		public Color Tint
 		{
 			get { return (Color)GetValue(TintProperty); }
@@ -58,18 +66,27 @@ namespace Xamarin.Forms
 
 		internal Task CurrentNavigationTask { get; set; }
 
-		internal Stack<Page> StackCopy
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public Page Peek(int depth)
 		{
-			get
+			if (depth < 0)
 			{
-				var result = new Stack<Page>(InternalChildren.Count);
-				foreach (Page page in InternalChildren)
-					result.Push(page);
-				return result;
+				return null;
 			}
+
+			if (InternalChildren.Count <= depth)
+			{
+				return null;
+			}
+
+			return (Page)InternalChildren[InternalChildren.Count - depth - 1];
 		}
 
-		internal int StackDepth
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public IEnumerable<Page> Pages => InternalChildren.Cast<Page>();
+
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public int StackDepth
 		{
 			get { return InternalChildren.Count; }
 		}
@@ -78,6 +95,12 @@ namespace Xamarin.Forms
 		{
 			get { return (Page)GetValue(CurrentPageProperty); }
 			private set { SetValue(CurrentPagePropertyKey, value); }
+		}
+
+		public Page RootPage
+		{
+			get { return (Page)GetValue(RootPageProperty); }
+			private set { SetValue(RootPagePropertyKey, value); }
 		}
 
 		public static string GetBackButtonTitle(BindableObject page)
@@ -116,12 +139,12 @@ namespace Xamarin.Forms
 				CurrentNavigationTask = tcs.Task;
 				await oldTask;
 
-				Page page = await PopAsyncInner(animated);
+				Page page = await PopAsyncInner(animated, false);
 				tcs.SetResult(true);
 				return page;
 			}
 
-			Task<Page> result = PopAsyncInner(animated);
+			Task<Page> result = PopAsyncInner(animated, false);
 			CurrentNavigationTask = result;
 			return await result;
 		}
@@ -215,9 +238,11 @@ namespace Xamarin.Forms
 			return base.OnBackButtonPressed();
 		}
 
-		internal event EventHandler<NavigationRequestedEventArgs> InsertPageBeforeRequested;
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public event EventHandler<NavigationRequestedEventArgs> InsertPageBeforeRequested;
 
-		internal async Task<Page> PopAsyncInner(bool animated, bool fast = false)
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public async Task<Page> PopAsyncInner(bool animated, bool fast)
 		{
 			if (StackDepth == 1)
 			{
@@ -252,28 +277,40 @@ namespace Xamarin.Forms
 			return page;
 		}
 
-		internal event EventHandler<NavigationRequestedEventArgs> PopRequested;
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public event EventHandler<NavigationRequestedEventArgs> PopRequested;
 
-		internal event EventHandler<NavigationRequestedEventArgs> PopToRootRequested;
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public event EventHandler<NavigationRequestedEventArgs> PopToRootRequested;
 
-		internal event EventHandler<NavigationRequestedEventArgs> PushRequested;
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public event EventHandler<NavigationRequestedEventArgs> PushRequested;
 
-		internal event EventHandler<NavigationRequestedEventArgs> RemovePageRequested;
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public event EventHandler<NavigationRequestedEventArgs> RemovePageRequested;
 
 		void InsertPageBefore(Page page, Page before)
 		{
+			if (page == null)
+				throw new ArgumentNullException($"{nameof(page)} cannot be null.");
+
+			if (before == null)
+				throw new ArgumentNullException($"{nameof(before)} cannot be null.");
+
 			if (!InternalChildren.Contains(before))
-				throw new ArgumentException("before must be a child of the NavigationPage", "before");
+				throw new ArgumentException($"{nameof(before)} must be a child of the NavigationPage", nameof(before));
 
 			if (InternalChildren.Contains(page))
 				throw new ArgumentException("Cannot insert page which is already in the navigation stack");
 
 			EventHandler<NavigationRequestedEventArgs> handler = InsertPageBeforeRequested;
-			if (handler != null)
-				handler(this, new NavigationRequestedEventArgs(page, before, false));
+			handler?.Invoke(this, new NavigationRequestedEventArgs(page, before, false));
 
 			int index = InternalChildren.IndexOf(before);
 			InternalChildren.Insert(index, page);
+
+			if (index == 0)
+				RootPage = page;
 
 			// Shouldn't be required?
 			if (Width > 0 && Height > 0)
@@ -285,13 +322,13 @@ namespace Xamarin.Forms
 			if (StackDepth == 1)
 				return;
 
-			var root = (Page)InternalChildren.First();
+			Element[] childrenToRemove = InternalChildren.Skip(1).ToArray();
+			foreach (Element child in childrenToRemove)
+				InternalChildren.Remove(child);
 
-			InternalChildren.ToArray().Where(c => c != root).ForEach(c => InternalChildren.Remove(c));
+			CurrentPage = RootPage;
 
-			CurrentPage = root;
-
-			var args = new NavigationRequestedEventArgs(root, animated);
+			var args = new NavigationRequestedEventArgs(RootPage, animated);
 
 			EventHandler<NavigationRequestedEventArgs> requestPopToRoot = PopToRootRequested;
 			if (requestPopToRoot != null)
@@ -302,8 +339,7 @@ namespace Xamarin.Forms
 					await args.Task;
 			}
 
-			if (PoppedToRoot != null)
-				PoppedToRoot(this, new NavigationEventArgs(root));
+			PoppedToRoot?.Invoke(this, new PoppedToRootEventArgs(RootPage, childrenToRemove.OfType<Page>().ToList()));
 		}
 
 		async Task PushAsyncInner(Page page, bool animated)
@@ -324,24 +360,29 @@ namespace Xamarin.Forms
 					await args.Task;
 			}
 
-			if (Pushed != null)
-				Pushed(this, args);
+			Pushed?.Invoke(this, args);
 		}
 
 		void PushPage(Page page)
 		{
 			InternalChildren.Add(page);
 
+			if (InternalChildren.Count == 1)
+				RootPage = page;
+
 			CurrentPage = page;
 		}
 
 		void RemovePage(Page page)
 		{
-			if (page == CurrentPage && StackDepth <= 1)
+			if (page == null)
+				throw new ArgumentNullException($"{nameof(page)} cannot be null.");
+
+			if (page == CurrentPage && CurrentPage == RootPage)
 				throw new InvalidOperationException("Cannot remove root page when it is also the currently displayed page.");
 			if (page == CurrentPage)
 			{
-				Log.Warning("NavigationPage", "RemovePage called for CurrentPage object. This can result in undesired behavior, consider called PopAsync instead.");
+				Log.Warning("NavigationPage", "RemovePage called for CurrentPage object. This can result in undesired behavior, consider calling PopAsync instead.");
 				PopAsync();
 				return;
 			}
@@ -350,10 +391,11 @@ namespace Xamarin.Forms
 				throw new ArgumentException("Page to remove must be contained on this Navigation Page");
 
 			EventHandler<NavigationRequestedEventArgs> handler = RemovePageRequested;
-			if (handler != null)
-				handler(this, new NavigationRequestedEventArgs(page, true));
+			handler?.Invoke(this, new NavigationRequestedEventArgs(page, true));
 
 			InternalChildren.Remove(page);
+			if (RootPage == page)
+				RootPage = (Page)InternalChildren.First();
 		}
 
 		void SafePop()
@@ -406,6 +448,13 @@ namespace Xamarin.Forms
 			{
 				Owner.RemovePage(page);
 			}
+		}
+
+		readonly Lazy<PlatformConfigurationRegistry<NavigationPage>> _platformConfigurationRegistry;
+
+		public new IPlatformElementConfiguration<T, NavigationPage> On<T>() where T : IConfigPlatform
+		{
+			return _platformConfigurationRegistry.Value.On<T>();
 		}
 	}
 }

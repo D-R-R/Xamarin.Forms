@@ -142,8 +142,10 @@
     <Compile Include="AlignmentExtensions.cs" />
     <Compile Include="Animatable.cs" />
     <Compile Include="AsyncValue.cs" />
+    <Compile Include="BrushHelpers.cs" />
     <Compile Include="CellControl.cs" />
     <Compile Include="CollapseWhenEmptyConverter.cs" />
+    <Compile Include="ConcurrentDictionary.cs" />
     <Compile Include="Deserializer.cs" />
     <Compile Include="CustomContextMenu.cs" />
     <Compile Include="ElementChangedEventArgs.cs" />
@@ -196,6 +198,7 @@
     <Compile Include="ScrollViewRenderer.cs" />
     <Compile Include="SearchBarRenderer.cs" />
     <Compile Include="SliderRenderer.cs" />
+    <Compile Include="SplitOrderedList.cs" />
     <Compile Include="StepperRenderer.cs" />
     <Compile Include="SwitchRenderer.cs" />
     <Compile Include="TabbedPageRenderer.cs" />

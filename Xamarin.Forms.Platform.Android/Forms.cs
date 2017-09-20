@@ -15,6 +15,7 @@ using Android.Content;
 using Android.Content.Res;
 using Android.OS;
 using Android.Util;
+using Android.Views;
 using Xamarin.Forms.Internals;
 using Xamarin.Forms.Platform.Android;
 using Resource = Android.Resource;
@@ -61,7 +62,7 @@ namespace Xamarin.Forms
 			}
 		}
 
-		internal static AndroidTitleBarVisibility TitleBarVisibility { get; private set; }
+		internal static AndroidTitleBarVisibility TitleBarVisibility { get; set; }
 
 		// Provide backwards compat for Forms.Init and AndroidActivity
 		// Why is bundle a param if never used?
@@ -76,9 +77,27 @@ namespace Xamarin.Forms
 			SetupInit(activity, resourceAssembly);
 		}
 
+		/// <summary>
+		/// Sets title bar visibility programmatically. Must be called after Xamarin.Forms.Forms.Init() method
+		/// </summary>
+		/// <param name="visibility">Title bar visibility enum</param>
 		public static void SetTitleBarVisibility(AndroidTitleBarVisibility visibility)
 		{
+			if((Activity)Context == null)
+				throw new NullReferenceException("Must be called after Xamarin.Forms.Forms.Init() method");
+
 			TitleBarVisibility = visibility;
+
+			if (TitleBarVisibility == AndroidTitleBarVisibility.Never)
+			{
+				if (!((Activity)Context).Window.Attributes.Flags.HasFlag(WindowManagerFlags.Fullscreen))
+					((Activity)Context).Window.AddFlags(WindowManagerFlags.Fullscreen);
+			}
+			else
+			{
+				if (((Activity)Context).Window.Attributes.Flags.HasFlag(WindowManagerFlags.Fullscreen))
+					((Activity)Context).Window.ClearFlags(WindowManagerFlags.Fullscreen);
+			}
 		}
 
 		public static event EventHandler<ViewInitializedEventArgs> ViewInitialized;
@@ -96,24 +115,11 @@ namespace Xamarin.Forms
 
 			ResourceManager.Init(resourceAssembly);
 
-			// Detect if legacy device and use appropriate accent color
-			// Hardcoded because could not get color from the theme drawable
-			var sdkVersion = (int)Build.VERSION.SdkInt;
-			if (sdkVersion <= 10)
-			{
-				// legacy theme button pressed color
-				Color.Accent = Color.FromHex("#fffeaa0c");
-			}
-			else
-			{
-				// Holo dark light blue
-				Color.Accent = Color.FromHex("#ff33b5e5");
-			}
+			Color.SetAccent(GetAccentColor());
 
 			if (!IsInitialized)
-				Log.Listeners.Add(new DelegateLogListener((c, m) => Trace.WriteLine(m, c)));
+				Internals.Log.Listeners.Add(new DelegateLogListener((c, m) => Trace.WriteLine(m, c)));
 
-			Device.OS = TargetPlatform.Android;
 			Device.PlatformServices = new AndroidPlatformServices();
 
 			// use field and not property to avoid exception in getter
@@ -123,15 +129,12 @@ namespace Xamarin.Forms
 				Device.info = null;
 			}
 
-			// probably could be done in a better way
-			var deviceInfoProvider = activity as IDeviceInfoProvider;
-			if (deviceInfoProvider != null)
-				Device.Info = new AndroidDeviceInfo(deviceInfoProvider);
+			Device.Info = new AndroidDeviceInfo(activity);
 
 			var ticker = Ticker.Default as AndroidTicker;
 			if (ticker != null)
 				ticker.Dispose();
-			Ticker.Default = new AndroidTicker();
+			Ticker.SetDefault(new AndroidTicker());
 
 			if (!IsInitialized)
 			{
@@ -140,7 +143,7 @@ namespace Xamarin.Forms
 
 			int minWidthDp = Context.Resources.Configuration.SmallestScreenWidthDp;
 
-			Device.Idiom = minWidthDp >= TabletCrossover ? TargetIdiom.Tablet : TargetIdiom.Phone;
+			Device.SetIdiom(minWidthDp >= TabletCrossover ? TargetIdiom.Tablet : TargetIdiom.Phone);
 
 			if (ExpressionSearch.Default == null)
 				ExpressionSearch.Default = new AndroidExpressionSearch();
@@ -148,19 +151,69 @@ namespace Xamarin.Forms
 			IsInitialized = true;
 		}
 
+		static IReadOnlyList<string> s_flags;
+		public static IReadOnlyList<string> Flags => s_flags ?? (s_flags = new List<string>().AsReadOnly());
+
+		public static void SetFlags(params string[] flags)
+		{
+			if (IsInitialized)
+			{
+				throw new InvalidOperationException($"{nameof(SetFlags)} must be called before {nameof(Init)}");
+			}
+
+			s_flags = flags.ToList().AsReadOnly();
+		}
+
+		static Color GetAccentColor()
+		{
+			Color rc;
+			using (var value = new TypedValue())
+			{
+				if (Context.Theme.ResolveAttribute(global::Android.Resource.Attribute.ColorAccent, value, true) && Forms.IsLollipopOrNewer)	// Android 5.0+
+				{
+					rc = Color.FromUint((uint)value.Data);
+				}
+				else if(Context.Theme.ResolveAttribute(Context.Resources.GetIdentifier("colorAccent", "attr", Context.PackageName), value, true))	// < Android 5.0
+				{
+					rc = Color.FromUint((uint)value.Data);
+				}
+				else                    // fallback to old code if nothing works (don't know if that ever happens)
+				{
+					// Detect if legacy device and use appropriate accent color
+					// Hardcoded because could not get color from the theme drawable
+					var sdkVersion = (int)Build.VERSION.SdkInt;
+					if (sdkVersion <= 10)
+					{
+						// legacy theme button pressed color
+						rc = Color.FromHex("#fffeaa0c");
+					}
+					else
+					{
+						// Holo dark light blue
+						rc = Color.FromHex("#ff33b5e5");
+					}
+				}
+			}
+			return rc;
+		}
+
 		class AndroidDeviceInfo : DeviceInfo
 		{
-			readonly IDeviceInfoProvider _formsActivity;
+			bool disposed;
+			readonly Context _formsActivity;
 			readonly Size _pixelScreenSize;
 			readonly double _scalingFactor;
 
 			Orientation _previousOrientation = Orientation.Undefined;
 
-			public AndroidDeviceInfo(IDeviceInfoProvider formsActivity)
+			public AndroidDeviceInfo(Context formsActivity)
 			{
 				_formsActivity = formsActivity;
 				CheckOrientationChanged(_formsActivity.Resources.Configuration.Orientation);
-				formsActivity.ConfigurationChanged += ConfigurationChanged;
+				// This will not be an implementation of IDeviceInfoProvider when running inside the context
+				// of layoutlib, which is what the Android Designer does.
+				if (_formsActivity is IDeviceInfoProvider)
+					((IDeviceInfoProvider) _formsActivity).ConfigurationChanged += ConfigurationChanged;
 
 				using (DisplayMetrics display = formsActivity.Resources.DisplayMetrics)
 				{
@@ -184,7 +237,11 @@ namespace Xamarin.Forms
 
 			protected override void Dispose(bool disposing)
 			{
-				_formsActivity.ConfigurationChanged -= ConfigurationChanged;
+				if (disposing && !disposed) {
+					disposed = true;
+					if (_formsActivity is IDeviceInfoProvider)
+						((IDeviceInfoProvider) _formsActivity).ConfigurationChanged -= ConfigurationChanged;
+				}
 				base.Dispose(disposing);
 			}
 
@@ -241,11 +298,16 @@ namespace Xamarin.Forms
 			double _microSize;
 			double _smallSize;
 
+			static Handler s_handler;
+
 			public void BeginInvokeOnMainThread(Action action)
 			{
-				var activity = Context as Activity;
-				if (activity != null)
-					activity.RunOnUiThread(action);
+				if (s_handler == null || s_handler.Looper != Looper.MainLooper)
+				{
+					s_handler = new Handler(Looper.MainLooper);
+				}
+
+				s_handler.Post(action);
 			}
 
 			public Ticker CreateTicker()
@@ -335,7 +397,14 @@ namespace Xamarin.Forms
 			{
 				using (var client = new HttpClient())
 				using (HttpResponseMessage response = await client.GetAsync(uri, cancellationToken))
+				{
+					if (!response.IsSuccessStatusCode)
+					{
+						Internals.Log.Warning("HTTP Request", $"Could not retrieve {uri}, status code {response.StatusCode}");
+						return null;
+					}
 					return await response.Content.ReadAsStreamAsync();
+				}
 			}
 
 			public IIsolatedStorageFile GetUserStoreForApplication()
@@ -351,6 +420,8 @@ namespace Xamarin.Forms
 				}
 			}
 
+			public string RuntimePlatform => Device.Android;
+
 			public void OpenUriAction(Uri uri)
 			{
 				global::Android.Net.Uri aUri = global::Android.Net.Uri.Parse(uri.ToString());
@@ -360,15 +431,15 @@ namespace Xamarin.Forms
 
 			public void StartTimer(TimeSpan interval, Func<bool> callback)
 			{
-				Timer timer = null;
-				TimerCallback onTimeout = o => BeginInvokeOnMainThread(() =>
+				var handler = new Handler(Looper.MainLooper);
+				handler.PostDelayed(() =>
 				{
 					if (callback())
-						return;
+						StartTimer(interval, callback);
 
-					timer.Dispose();
-				});
-				timer = new Timer(onTimeout, null, interval, interval);
+					handler.Dispose();
+					handler = null;
+				}, (long)interval.TotalMilliseconds);
 			}
 
 			double ConvertTextAppearanceToSize(int themeDefault, int deviceDefault, double defaultValue)
@@ -410,39 +481,9 @@ namespace Xamarin.Forms
 				}
 				catch (Exception ex)
 				{
-					Log.Warning("Xamarin.Forms.Platform.Android.AndroidPlatformServices", "Error retrieving text appearance: {0}", ex);
+					Internals.Log.Warning("Xamarin.Forms.Platform.Android.AndroidPlatformServices", "Error retrieving text appearance: {0}", ex);
 				}
 				return false;
-			}
-
-			public class _Timer : ITimer
-			{
-				readonly Timer _timer;
-
-				public _Timer(Timer timer)
-				{
-					_timer = timer;
-				}
-
-				public void Change(int dueTime, int period)
-				{
-					_timer.Change(dueTime, period);
-				}
-
-				public void Change(long dueTime, long period)
-				{
-					_timer.Change(dueTime, period);
-				}
-
-				public void Change(TimeSpan dueTime, TimeSpan period)
-				{
-					_timer.Change(dueTime, period);
-				}
-
-				public void Change(uint dueTime, uint period)
-				{
-					_timer.Change(dueTime, period);
-				}
 			}
 
 			public class _IsolatedStorageFile : IIsolatedStorageFile
@@ -475,13 +516,13 @@ namespace Xamarin.Forms
 					return Task.FromResult(_isolatedStorageFile.GetLastWriteTime(path));
 				}
 
-				public Task<Stream> OpenFileAsync(string path, FileMode mode, FileAccess access)
+				public Task<Stream> OpenFileAsync(string path, Internals.FileMode mode, Internals.FileAccess access)
 				{
 					Stream stream = _isolatedStorageFile.OpenFile(path, (System.IO.FileMode)mode, (System.IO.FileAccess)access);
 					return Task.FromResult(stream);
 				}
 
-				public Task<Stream> OpenFileAsync(string path, FileMode mode, FileAccess access, FileShare share)
+				public Task<Stream> OpenFileAsync(string path, Internals.FileMode mode, Internals.FileAccess access, Internals.FileShare share)
 				{
 					Stream stream = _isolatedStorageFile.OpenFile(path, (System.IO.FileMode)mode, (System.IO.FileAccess)access, (System.IO.FileShare)share);
 					return Task.FromResult(stream);

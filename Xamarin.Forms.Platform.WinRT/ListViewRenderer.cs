@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Foundation;
+using Windows.System;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Data;
@@ -12,6 +13,7 @@ using Windows.UI.Xaml.Media;
 using WListView = Windows.UI.Xaml.Controls.ListView;
 using WBinding = Windows.UI.Xaml.Data.Binding;
 using WApp = Windows.UI.Xaml.Application;
+using Xamarin.Forms.Internals;
 
 #if WINDOWS_UWP
 
@@ -23,6 +25,9 @@ namespace Xamarin.Forms.Platform.WinRT
 {
 	public class ListViewRenderer : ViewRenderer<ListView, FrameworkElement>
 	{
+		ITemplatedItemsView<Cell> TemplatedItemsView => Element;
+
+
 #if !WINDOWS_UWP
 		public static readonly DependencyProperty HighlightWhenSelectedProperty = DependencyProperty.RegisterAttached("HighlightWhenSelected", typeof(bool), typeof(ListViewRenderer),
 			new PropertyMetadata(false));
@@ -67,21 +72,22 @@ namespace Xamarin.Forms.Platform.WinRT
 						GroupStyleSelector = (GroupStyleSelector)WApp.Current.Resources["ListViewGroupSelector"]
 					};
 
-					// In order to support tapping on elements within a list item, we handle
-					// ListView.Tapped (which can be handled by child elements in the list items
-					// and prevented from bubbling up) rather than ListView.ItemClick
-					List.Tapped += ListOnTapped;
+					List.IsItemClickEnabled = true;
+					List.ItemClick += OnListItemClicked;
 
-					if (ShouldCustomHighlight)
-					{
-						List.SelectionChanged += OnControlSelectionChanged;
-					}
+					List.SelectionChanged += OnControlSelectionChanged;
 
 					List.SetBinding(ItemsControl.ItemsSourceProperty, "");
 				}
 
 				// WinRT throws an exception if you set ItemsSource directly to a CVS, so bind it.
 				List.DataContext = new CollectionViewSource { Source = Element.ItemsSource, IsSourceGrouped = Element.IsGroupingEnabled };
+
+#if !WINDOWS_UWP
+				var selected = Element.SelectedItem;
+				if (selected != null)
+					OnElementItemSelected(null, new SelectedItemChangedEventArgs(selected));
+#endif
 
 				UpdateGrouping();
 				UpdateHeader();
@@ -129,12 +135,8 @@ namespace Xamarin.Forms.Platform.WinRT
 		{
 			if (List != null)
 			{
-				List.Tapped -= ListOnTapped;
-
-				if (ShouldCustomHighlight)
-				{
-					List.SelectionChanged -= OnControlSelectionChanged;
-				}
+				List.ItemClick -= OnListItemClicked;
+				List.SelectionChanged -= OnControlSelectionChanged;
 
 				List.DataContext = null;
 				List = null;
@@ -189,18 +191,6 @@ namespace Xamarin.Forms.Platform.WinRT
 		ContentControl _headerControl;
 		readonly List<BrushedElement> _highlightedElements = new List<BrushedElement>();
 
-		bool ShouldCustomHighlight
-		{
-			get
-			{
-#if WINDOWS_UWP
-				return false;
-#else
-				return Device.Idiom == TargetIdiom.Phone;
-#endif
-			}
-		}
-
 		void ClearSizeEstimate()
 		{
 			Element.ClearValue(CellControl.MeasuredEstimateProperty);
@@ -208,12 +198,12 @@ namespace Xamarin.Forms.Platform.WinRT
 
 		void UpdateFooter()
 		{
-			List.Footer = ((IListViewController)Element).FooterElement;
+			List.Footer = Element.FooterElement;
 		}
 
 		void UpdateHeader()
 		{
-			List.Header = ((IListViewController)Element).HeaderElement;
+			List.Header = Element.HeaderElement;
 		}
 
 		void UpdateGrouping()
@@ -222,13 +212,14 @@ namespace Xamarin.Forms.Platform.WinRT
 
 			((CollectionViewSource)List.DataContext).IsSourceGrouped = grouping;
 
-			if (grouping && Element.TemplatedItems.ShortNames != null)
+			var templatedItems = TemplatedItemsView.TemplatedItems;
+			if (grouping && templatedItems.ShortNames != null)
 			{
 				if (_zoom == null)
 				{
 					ScrollViewer.SetIsVerticalScrollChainingEnabled(List, false);
 
-					var grid = new GridView { ItemsSource = Element.TemplatedItems.ShortNames, Style = (Windows.UI.Xaml.Style)WApp.Current.Resources["JumpListGrid"] };
+					var grid = new GridView { ItemsSource = templatedItems.ShortNames, Style = (Windows.UI.Xaml.Style)WApp.Current.Resources["JumpListGrid"] };
 
 					ScrollViewer.SetIsHorizontalScrollChainingEnabled(grid, false);
 
@@ -263,11 +254,12 @@ namespace Xamarin.Forms.Platform.WinRT
 			// HACK: Technically more than one short name could be the same, this will potentially find the wrong one in that case
 			var item = (string)e.SourceItem.Item;
 
-			int index = Element.TemplatedItems.ShortNames.IndexOf(item);
+			var templatedItems = TemplatedItemsView.TemplatedItems;
+			int index = templatedItems.ShortNames.IndexOf(item);
 			if (index == -1)
 				return;
 
-			TemplatedItemsList<ItemsView<Cell>, Cell> til = Element.TemplatedItems.GetGroup(index);
+			var til = templatedItems.GetGroup(index);
 			if (til.Count == 0)
 				return; // FIXME
 
@@ -275,7 +267,8 @@ namespace Xamarin.Forms.Platform.WinRT
 			if (Device.Idiom == TargetIdiom.Phone)
 				await Task.Delay(1);
 
-			ScrollTo(til.ListProxy.ProxiedEnumerable, til.ListProxy[0], ScrollToPosition.Start, true, true);
+			IListProxy listProxy = til.ListProxy;
+			ScrollTo(listProxy.ProxiedEnumerable, listProxy[0], ScrollToPosition.Start, true, true);
 		}
 
 #pragma warning disable 1998 // considered for removal
@@ -296,12 +289,12 @@ namespace Xamarin.Forms.Platform.WinRT
 				List.Loaded += loadedHandler;
 				return;
 			}
-
-			Tuple<int, int> location = Element.TemplatedItems.GetGroupAndIndexOfItem(group, item);
+			var templatedItems = TemplatedItemsView.TemplatedItems;
+			Tuple<int, int> location = templatedItems.GetGroupAndIndexOfItem(group, item);
 			if (location.Item1 == -1 || location.Item2 == -1)
 				return;
 
-			object[] t = Element.TemplatedItems.GetGroup(location.Item1).ItemsSource.Cast<object>().ToArray();
+			object[] t = templatedItems.GetGroup(location.Item1).ItemsSource.Cast<object>().ToArray();
 			object c = t[location.Item2];
 
 			double viewportHeight = viewer.ViewportHeight;
@@ -311,33 +304,33 @@ namespace Xamarin.Forms.Platform.WinRT
 			switch (toPosition)
 			{
 				case ScrollToPosition.Start:
-				{
-					List.ScrollIntoView(c, ScrollIntoViewAlignment.Leading);
-					return;
-				}
+					{
+						List.ScrollIntoView(c, ScrollIntoViewAlignment.Leading);
+						return;
+					}
 
 				case ScrollToPosition.MakeVisible:
-				{
-					List.ScrollIntoView(c, ScrollIntoViewAlignment.Default);
-					return;
-				}
+					{
+						List.ScrollIntoView(c, ScrollIntoViewAlignment.Default);
+						return;
+					}
 
 				case ScrollToPosition.End:
 				case ScrollToPosition.Center:
-				{
-					var content = (FrameworkElement)List.ItemTemplate.LoadContent();
-					content.DataContext = c;
-					content.Measure(new Windows.Foundation.Size(viewer.ActualWidth, double.PositiveInfinity));
+					{
+						var content = (FrameworkElement)List.ItemTemplate.LoadContent();
+						content.DataContext = c;
+						content.Measure(new Windows.Foundation.Size(viewer.ActualWidth, double.PositiveInfinity));
 
-					double tHeight = content.DesiredSize.Height;
+						double tHeight = content.DesiredSize.Height;
 
-					if (toPosition == ScrollToPosition.Center)
-						semanticLocation.Bounds = new Rect(0, viewportHeight / 2 - tHeight / 2, 0, 0);
-					else
-						semanticLocation.Bounds = new Rect(0, viewportHeight - tHeight, 0, 0);
+						if (toPosition == ScrollToPosition.Center)
+							semanticLocation.Bounds = new Rect(0, viewportHeight / 2 - tHeight / 2, 0, 0);
+						else
+							semanticLocation.Bounds = new Rect(0, viewportHeight - tHeight, 0, 0);
 
-					break;
-				}
+						break;
+					}
 			}
 
 			// Waiting for loaded doesn't seem to be enough anymore; the ScrollViewer does not appear until after Loaded.
@@ -359,7 +352,8 @@ namespace Xamarin.Forms.Platform.WinRT
 
 		void OnElementScrollToRequested(object sender, ScrollToRequestedEventArgs e)
 		{
-			ScrollTo(e.Group, e.Item, e.Position, e.ShouldAnimate);
+			var scrollArgs = (ITemplatedItemsListScrollToRequestedEventArgs)e;
+			ScrollTo(scrollArgs.Group, scrollArgs.Item, e.Position, e.ShouldAnimate);
 		}
 
 		T GetFirstDescendant<T>(DependencyObject element) where T : FrameworkElement
@@ -422,57 +416,31 @@ namespace Xamarin.Forms.Platform.WinRT
 				List.SelectedIndex = -1;
 				return;
 			}
-
+			var templatedItems = TemplatedItemsView.TemplatedItems;
 			var index = 0;
 			if (Element.IsGroupingEnabled)
 			{
-				int selectedItemIndex = Element.TemplatedItems.GetGlobalIndexOfItem(e.SelectedItem);
+				int selectedItemIndex = templatedItems.GetGlobalIndexOfItem(e.SelectedItem);
 				var leftOver = 0;
-				int groupIndex = Element.TemplatedItems.GetGroupIndexFromGlobal(selectedItemIndex, out leftOver);
+				int groupIndex = templatedItems.GetGroupIndexFromGlobal(selectedItemIndex, out leftOver);
 
 				index = selectedItemIndex - (groupIndex + 1);
 			}
 			else
 			{
-				index = Element.TemplatedItems.GetGlobalIndexOfItem(e.SelectedItem);
+				index = templatedItems.GetGlobalIndexOfItem(e.SelectedItem);
 			}
 
 			List.SelectedIndex = index;
 		}
 
-		void ListOnTapped(object sender, TappedRoutedEventArgs args)
-		{
-			var orig = args.OriginalSource as DependencyObject;
-			int index = -1;
-
-			// Work our way up the tree until we find the actual list item 
-			// the user tapped on
-			while (orig != null && orig != List)
-			{
-				var lv = orig as ListViewItem;
-
-				if (lv != null)
-				{
-					index = Element.TemplatedItems.GetGlobalIndexOfItem(lv.Content);
-					break;
-				}
-
-				orig = VisualTreeHelper.GetParent(orig);
-			}
-
-			if (index > -1)
-			{
-				OnListItemClicked(index);
-			}
-		}
-
 		void OnListItemClicked(int index)
 		{
 #if !WINDOWS_UWP
-	// If we're on the phone , we need to cache the selected item in case the handler 
-	// we're about to call changes any item indexes;
-	// in some cases, those index changes will throw an exception we can't catch if 
-	// the listview has an item selected
+			// If we're on the phone , we need to cache the selected item in case the handler 
+			// we're about to call changes any item indexes;
+			// in some cases, those index changes will throw an exception we can't catch if 
+			// the listview has an item selected
 			object selectedItem = null;
 			if (Device.Idiom == TargetIdiom.Phone)
 			{
@@ -482,7 +450,7 @@ namespace Xamarin.Forms.Platform.WinRT
 			}
 #endif
 
-			Element.NotifyRowTapped(index);
+			Element.NotifyRowTapped(index, cell: null);
 
 #if !WINDOWS_UWP
 
@@ -507,18 +475,33 @@ namespace Xamarin.Forms.Platform.WinRT
 #endif
 		}
 
+		void OnListItemClicked(object sender, ItemClickEventArgs e)
+		{
+			if (e.ClickedItem != null)
+				OnListItemClicked(((WListView)e.OriginalSource).Items.IndexOf(e.ClickedItem));
+		}
+
 		void OnControlSelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
 			RestorePreviousSelectedVisual();
 
 			if (e.AddedItems.Count == 0)
+			{
+				// Deselecting an item is a valid SelectedItem change.
+				if (Element.SelectedItem != List.SelectedItem)
+				{
+					OnListItemClicked(List.SelectedIndex);
+				}
+
 				return;
+			}
 
 			object cell = e.AddedItems[0];
 			if (cell == null)
 				return;
 
-			if (ShouldCustomHighlight)
+#if !WINDOWS_UWP
+			if (Device.Idiom == TargetIdiom.Phone)
 			{
 				FrameworkElement element = FindElement(cell);
 				if (element != null)
@@ -526,6 +509,9 @@ namespace Xamarin.Forms.Platform.WinRT
 					SetSelectedVisual(element);
 				}
 			}
+#endif
+			if (Element.SelectedItem != List.SelectedItem)
+				((IElementController)Element).SetValueFromRenderer(ListView.SelectedItemProperty, List.SelectedItem);
 		}
 
 		FrameworkElement FindElement(object cell)

@@ -1,13 +1,17 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Reflection;
+using Xamarin.Forms.Internals;
 using Xamarin.Forms.Platform;
 
 namespace Xamarin.Forms
 {
 	[RenderWith(typeof(_ImageRenderer))]
-	public class Image : View
+	public class Image : View, IImageController, IElementConfiguration<Image>
 	{
-		public static readonly BindableProperty SourceProperty = BindableProperty.Create("Source", typeof(ImageSource), typeof(Image), default(ImageSource), propertyChanging: OnSourcePropertyChanging,
-			propertyChanged: OnSourcePropertyChanged);
+		public static readonly BindableProperty SourceProperty = BindableProperty.Create("Source", typeof(ImageSource), typeof(Image), default(ImageSource), 
+			propertyChanging: OnSourcePropertyChanging, propertyChanged: OnSourcePropertyChanged);
 
 		public static readonly BindableProperty AspectProperty = BindableProperty.Create("Aspect", typeof(Aspect), typeof(Image), Aspect.AspectFit);
 
@@ -16,6 +20,13 @@ namespace Xamarin.Forms
 		internal static readonly BindablePropertyKey IsLoadingPropertyKey = BindableProperty.CreateReadOnly("IsLoading", typeof(bool), typeof(Image), default(bool));
 
 		public static readonly BindableProperty IsLoadingProperty = IsLoadingPropertyKey.BindableProperty;
+
+		readonly Lazy<PlatformConfigurationRegistry<Image>> _platformConfigurationRegistry;
+
+		public Image()
+		{
+			_platformConfigurationRegistry = new Lazy<PlatformConfigurationRegistry<Image>>(() => new PlatformConfigurationRegistry<Image>(this));
+		}
 
 		public Aspect Aspect
 		{
@@ -49,7 +60,7 @@ namespace Xamarin.Forms
 			base.OnBindingContextChanged();
 		}
 
-		[Obsolete("Use OnMeasure")]
+		[Obsolete("OnSizeRequest is obsolete as of version 2.2.0. Please use OnMeasure instead.")]
 		protected override SizeRequest OnSizeRequest(double widthConstraint, double heightConstraint)
 		{
 			SizeRequest desiredSize = base.OnSizeRequest(double.PositiveInfinity, double.PositiveInfinity);
@@ -110,7 +121,7 @@ namespace Xamarin.Forms
 		void OnSourceChanged(object sender, EventArgs eventArgs)
 		{
 			OnPropertyChanged(SourceProperty.PropertyName);
-			InvalidateMeasure(InvalidationTrigger.MeasureChanged);
+			InvalidateMeasureInternal(InvalidationTrigger.MeasureChanged);
 		}
 
 		static void OnSourcePropertyChanged(BindableObject bindable, object oldvalue, object newvalue)
@@ -125,7 +136,8 @@ namespace Xamarin.Forms
 				newvalue.SourceChanged += OnSourceChanged;
 				SetInheritedBindingContext(newvalue, BindingContext);
 			}
-			InvalidateMeasure(InvalidationTrigger.MeasureChanged);
+
+			InvalidateMeasureInternal(InvalidationTrigger.MeasureChanged);
 		}
 
 		static void OnSourcePropertyChanging(BindableObject bindable, object oldvalue, object newvalue)
@@ -137,9 +149,27 @@ namespace Xamarin.Forms
 		{
 			if (oldvalue == null)
 				return;
-
+			
 			oldvalue.SourceChanged -= OnSourceChanged;
-			await oldvalue.Cancel();
+			try
+			{
+				await oldvalue.Cancel();
+			}
+			catch(ObjectDisposedException)
+			{ 
+				// Workaround bugzilla 37792 https://bugzilla.xamarin.com/show_bug.cgi?id=37792
+			}
+		}
+
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void SetIsLoading(bool isLoading)
+		{
+			SetValue(IsLoadingPropertyKey, isLoading);
+		}
+
+		public IPlatformElementConfiguration<T, Image> On<T>() where T : IConfigPlatform
+		{
+			return _platformConfigurationRegistry.Value.On<T>();
 		}
 	}
 }

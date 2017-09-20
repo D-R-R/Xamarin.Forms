@@ -1,13 +1,16 @@
 using System;
 using System.Collections;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Windows.Input;
+using Xamarin.Forms.Internals;
 using Xamarin.Forms.Platform;
 
 namespace Xamarin.Forms
 {
 	[RenderWith(typeof(_ListViewRenderer))]
-	public class ListView : ItemsView<Cell>, IListViewController
+	public class ListView : ItemsView<Cell>, IListViewController, IElementConfiguration<ListView>
 
 	{
 		public static readonly BindableProperty IsPullToRefreshEnabledProperty = BindableProperty.Create("IsPullToRefreshEnabled", typeof(bool), typeof(ListView), false);
@@ -42,6 +45,8 @@ namespace Xamarin.Forms
 
 		public static readonly BindableProperty SeparatorColorProperty = BindableProperty.Create("SeparatorColor", typeof(Color), typeof(ListView), Color.Default);
 
+		readonly Lazy<PlatformConfigurationRegistry<ListView>> _platformConfigurationRegistry;
+
 		BindingBase _groupDisplayBinding;
 
 		BindingBase _groupShortNameBinding;
@@ -59,17 +64,20 @@ namespace Xamarin.Forms
 
 		public ListView()
 		{
-			TakePerformanceHit = false;
-
 			VerticalOptions = HorizontalOptions = LayoutOptions.FillAndExpand;
 
 			TemplatedItems.IsGroupingEnabledProperty = IsGroupingEnabledProperty;
 			TemplatedItems.GroupHeaderTemplateProperty = GroupHeaderTemplateProperty;
+			_platformConfigurationRegistry = new Lazy<PlatformConfigurationRegistry<ListView>>(() => new PlatformConfigurationRegistry<ListView>(this));
 		}
 
 		public ListView([Parameter("CachingStrategy")] ListViewCachingStrategy cachingStrategy) : this()
 		{
-			if (Device.OS == TargetPlatform.Android || Device.OS == TargetPlatform.iOS)
+			// null => UnitTest "platform"
+			if (Device.RuntimePlatform == null || 
+				Device.RuntimePlatform == Device.Android || 
+				Device.RuntimePlatform == Device.iOS || 
+				Device.RuntimePlatform == Device.macOS)
 				CachingStrategy = cachingStrategy;
 		}
 
@@ -83,6 +91,25 @@ namespace Xamarin.Forms
 		{
 			get { return (DataTemplate)GetValue(FooterTemplateProperty); }
 			set { SetValue(FooterTemplateProperty, value); }
+		}
+
+		protected override void OnBindingContextChanged()
+		{
+			base.OnBindingContextChanged();
+
+			object bc = BindingContext;
+
+			var header = Header as Element;
+			if (header != null)
+			{
+				SetChildInheritedBindingContext(header, bc);
+			}
+
+			var footer = Footer as Element;
+			if (footer != null)
+			{
+				SetChildInheritedBindingContext(footer, bc);
+			}
 		}
 
 		public BindingBase GroupDisplayBinding
@@ -189,11 +216,11 @@ namespace Xamarin.Forms
 			set { SetValue(SeparatorVisibilityProperty, value); }
 		}
 
-		internal ListViewCachingStrategy CachingStrategy { get; private set; }
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public ListViewCachingStrategy CachingStrategy { get; private set; }
 
-		internal bool TakePerformanceHit { get; set; }
-
-		bool RefreshAllowed
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public bool RefreshAllowed
 		{
 			set
 			{
@@ -206,36 +233,36 @@ namespace Xamarin.Forms
 			get { return _refreshAllowed; }
 		}
 
-		Element IListViewController.FooterElement
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public Element FooterElement
 		{
 			get { return _footerElement; }
 		}
 
-		Element IListViewController.HeaderElement
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public Element HeaderElement
 		{
 			get { return _headerElement; }
 		}
 
-		bool IListViewController.RefreshAllowed
-		{
-			get { return RefreshAllowed; }
-		}
-
-		void IListViewController.SendCellAppearing(Cell cell)
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void SendCellAppearing(Cell cell)
 		{
 			EventHandler<ItemVisibilityEventArgs> handler = ItemAppearing;
 			if (handler != null)
 				handler(this, new ItemVisibilityEventArgs(cell.BindingContext));
 		}
 
-		void IListViewController.SendCellDisappearing(Cell cell)
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void SendCellDisappearing(Cell cell)
 		{
 			EventHandler<ItemVisibilityEventArgs> handler = ItemDisappearing;
 			if (handler != null)
 				handler(this, new ItemVisibilityEventArgs(cell.BindingContext));
 		}
 
-		void IListViewController.SendRefreshing()
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void SendRefreshing()
 		{
 			BeginRefresh();
 		}
@@ -303,7 +330,7 @@ namespace Xamarin.Forms
 			return new TextCell { Text = text };
 		}
 
-		[Obsolete("Use OnMeasure")]
+		[Obsolete("OnSizeRequest is obsolete as of version 2.2.0. Please use OnMeasure instead.")]
 		protected override SizeRequest OnSizeRequest(double widthConstraint, double heightConstraint)
 		{
 			var minimumSize = new Size(40, 40);
@@ -329,7 +356,11 @@ namespace Xamarin.Forms
 		protected override void SetupContent(Cell content, int index)
 		{
 			base.SetupContent(content, index);
+			var viewCell = content as ViewCell;
+			if (viewCell != null && viewCell.View != null && HasUnevenRows)
+				viewCell.View.ComputedConstraint = LayoutConstraint.None;
 			content.Parent = this;
+
 		}
 
 		protected override void UnhookContent(Cell content)
@@ -338,33 +369,57 @@ namespace Xamarin.Forms
 			content.Parent = null;
 		}
 
-		internal Cell CreateDefaultCell(object item)
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public Cell CreateDefaultCell(object item)
 		{
 			return CreateDefault(item);
 		}
 
-		internal void NotifyRowTapped(int groupIndex, int inGroupIndex, Cell cell = null)
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public string GetDisplayTextFromGroup(object cell)
 		{
-			TemplatedItemsList<ItemsView<Cell>, Cell> group = TemplatedItems.GetGroup(groupIndex);
+			int groupIndex = TemplatedItems.GetGlobalIndexOfGroup(cell);
+			var group = TemplatedItems.GetGroup(groupIndex);
+
+			string displayBinding = null;
+
+			if (GroupDisplayBinding != null)
+				displayBinding = group.Name;
+
+			if (GroupShortNameBinding != null)
+				displayBinding = group.ShortName;
+
+			// TODO: what if they set both? should it default to the ShortName, like it will here?
+			// ShortNames binding did not appear to be functional before.
+			return displayBinding;
+		}
+
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void NotifyRowTapped(int groupIndex, int inGroupIndex, Cell cell = null)
+		{
+			var group = TemplatedItems.GetGroup(groupIndex);
 
 			bool changed = _previousGroupSelected != groupIndex || _previousRowSelected != inGroupIndex;
 
 			_previousRowSelected = inGroupIndex;
 			_previousGroupSelected = groupIndex;
-			if (cell == null)
+
+			// A11y: Keyboards and screen readers can deselect items, allowing -1 to be possible
+			if (cell == null && inGroupIndex != -1)
 			{
 				cell = group[inGroupIndex];
 			}
 
 			// Set SelectedItem before any events so we don't override any changes they may have made.
-			SetValueCore(SelectedItemProperty, cell.BindingContext, SetValueFlags.ClearOneWayBindings | SetValueFlags.ClearDynamicResource | (changed ? SetValueFlags.RaiseOnEqual : 0));
+			SetValueCore(SelectedItemProperty, cell?.BindingContext, SetValueFlags.ClearOneWayBindings | SetValueFlags.ClearDynamicResource | (changed ? SetValueFlags.RaiseOnEqual : 0));
 
-			cell.OnTapped();
+			cell?.OnTapped();
 
-			ItemTapped?.Invoke(this, new ItemTappedEventArgs(group, cell.BindingContext));
+			ItemTapped?.Invoke(this, new ItemTappedEventArgs(ItemsSource.Cast<object>().ElementAt(groupIndex), cell?.BindingContext));
 		}
 
-		internal void NotifyRowTapped(int index, Cell cell = null)
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void NotifyRowTapped(int index, Cell cell = null)
 		{
 			if (IsGroupingEnabled)
 			{
@@ -388,7 +443,8 @@ namespace Xamarin.Forms
 			}
 		}
 
-		internal event EventHandler<ScrollToRequestedEventArgs> ScrollToRequested;
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public event EventHandler<ScrollToRequestedEventArgs> ScrollToRequested;
 
 		void OnCommandCanExecuteChanged(object sender, EventArgs eventArgs)
 		{
@@ -535,6 +591,11 @@ namespace Xamarin.Forms
 				return true;
 			var template = (DataTemplate)value;
 			return template.CreateContent() is View;
+		}
+
+		public IPlatformElementConfiguration<T, ListView> On<T>() where T : IConfigPlatform
+		{
+			return _platformConfigurationRegistry.Value.On<T>();
 		}
 	}
 }

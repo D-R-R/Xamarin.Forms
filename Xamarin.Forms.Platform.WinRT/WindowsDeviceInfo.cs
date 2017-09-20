@@ -2,6 +2,7 @@
 using Windows.Foundation;
 using Windows.Graphics.Display;
 using Windows.UI.Xaml;
+using Xamarin.Forms.Internals;
 
 #if WINDOWS_UWP
 
@@ -77,9 +78,13 @@ namespace Xamarin.Forms.Platform.WinRT
 			if (_isDisposed)
 				return;
 
+			if (disposing)
+			{
+				_information.OrientationChanged -= OnOrientationChanged;
+				_information = null;
+			}
+
 			_isDisposed = true;
-			_information.OrientationChanged -= OnOrientationChanged;
-			_information = null;
 
 			base.Dispose(disposing);
 		}

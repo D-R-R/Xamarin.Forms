@@ -157,7 +157,7 @@
         <Parameter Name="easingFunc" Type="System.Func&lt;System.Double,System.Double&gt;" />
       </Parameters>
       <Docs>
-        <param name="easingFunc">To be added.</param>
+        <param name="easingFunc">A function that maps animation times.</param>
         <summary>Creates a new <see cref="T:Xamarin.Forms.Easing" /> object with the <paramref name="easingFunc" /> function.</summary>
         <remarks>To be added.</remarks>
       </Docs>
@@ -179,12 +179,11 @@
         <ReturnType>Xamarin.Forms.Easing</ReturnType>
       </ReturnValue>
       <Docs>
-        <summary>Jumps towards, and then bounces as it settles at the final value. (Note: Known bug in 1.0.0 release)</summary>
+        <summary>
+          <para>Jumps towards, and then bounces as it settles at the final value.</para>
+        </summary>
         <remarks>
-          <para>NOTE: The 1.0.0. release of <see cref="F:Xamarin.Forms.Easing.BounceIn" /> has a known bug and runs backwards. The following graph shows the desired behavior, shortly to be released:</para>
-          <para>
-            <img href="Easing.BounceIn.png" />
-          </para>
+          <img href="Easing.BounceIn.png" />
         </remarks>
       </Docs>
     </Member>
@@ -409,7 +408,7 @@
         <ReturnType>Xamarin.Forms.Easing</ReturnType>
       </ReturnValue>
       <Docs>
-        <summary>Accelerates in and out.</summary>
+        <summary>Accelerates in and decelerates out.</summary>
         <remarks>
           <para>
             <img href="Easing.SinInOut.gif" />

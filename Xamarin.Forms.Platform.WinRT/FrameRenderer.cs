@@ -1,5 +1,7 @@
 ﻿using System.ComponentModel;
+using Windows.Storage.Streams;
 using Windows.UI.Xaml;
+using Windows.UI.Xaml.Automation.Peers;
 using Windows.UI.Xaml.Controls;
 
 #if WINDOWS_UWP
@@ -17,6 +19,17 @@ namespace Xamarin.Forms.Platform.WinRT
 			AutoPackage = false;
 		}
 
+		protected override AutomationPeer OnCreateAutomationPeer()
+		{
+			// We need an automation peer so we can interact with this in automated tests
+			if (Control == null)
+			{
+				return new FrameworkElementAutomationPeer(this);
+			}
+
+			return new FrameworkElementAutomationPeer(Control);
+		}
+
 		protected override void OnElementChanged(ElementChangedEventArgs<Frame> e)
 		{
 			base.OnElementChanged(e);
@@ -28,6 +41,7 @@ namespace Xamarin.Forms.Platform.WinRT
 
 				PackChild();
 				UpdateBorder();
+				UpdateCornerRadius();
 			}
 		}
 
@@ -43,6 +57,10 @@ namespace Xamarin.Forms.Platform.WinRT
 			{
 				UpdateBorder();
 			}
+			else if (e.PropertyName == Frame.CornerRadiusProperty.PropertyName)
+			{
+				UpdateCornerRadius();
+			}
 		}
 
 		void PackChild()
@@ -56,7 +74,6 @@ namespace Xamarin.Forms.Platform.WinRT
 
 		void UpdateBorder()
 		{
-			Control.CornerRadius = new CornerRadius(5);
 			if (Element.OutlineColor != Color.Default)
 			{
 				Control.BorderBrush = Element.OutlineColor.ToBrush();
@@ -66,6 +83,16 @@ namespace Xamarin.Forms.Platform.WinRT
 			{
 				Control.BorderBrush = new Color(0, 0, 0, 0).ToBrush();
 			}
+		}
+
+		void UpdateCornerRadius()
+		{
+			float cornerRadius = Element.CornerRadius;
+
+			if (cornerRadius == -1f)
+				cornerRadius = 5f; // default corner radius
+
+			Control.CornerRadius = new CornerRadius(cornerRadius);
 		}
 	}
 }

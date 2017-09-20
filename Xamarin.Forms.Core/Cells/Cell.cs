@@ -7,8 +7,9 @@ using System.Threading.Tasks;
 
 namespace Xamarin.Forms
 {
-	public abstract class Cell : Element
+	public abstract class Cell : Element, ICellController
 	{
+		public const int DefaultCellHeight = 40;
 		public static readonly BindableProperty IsEnabledProperty = BindableProperty.Create("IsEnabled", typeof(bool), typeof(Cell), true, propertyChanged: OnIsEnabledPropertyChanged);
 
 		ObservableCollection<MenuItem> _contextActions;
@@ -70,13 +71,16 @@ namespace Xamarin.Forms
 				if (list != null)
 					return list.HasUnevenRows && Height > 0 ? Height : list.RowHeight;
 
-				return 40;
+				return DefaultCellHeight;
 			}
 		}
 
 		public event EventHandler Appearing;
 
 		public event EventHandler Disappearing;
+
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public event EventHandler ForceUpdateSizeRequested;
 
 		public void ForceUpdateSize()
 		{
@@ -148,22 +152,22 @@ namespace Xamarin.Forms
 			base.OnPropertyChanging(propertyName);
 		}
 
-		internal event EventHandler ForceUpdateSizeRequested;
-
-		internal void SendAppearing()
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void SendAppearing()
 		{
 			OnAppearing();
 
-			var container = RealParent as IListViewController;
+			var container = RealParent as ListView;
 			if (container != null)
 				container.SendCellAppearing(this);
 		}
 
-		internal void SendDisappearing()
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void SendDisappearing()
 		{
 			OnDisappearing();
 
-			var container = RealParent as IListViewController;
+			var container = RealParent as ListView;
 			if (container != null)
 				container.SendCellDisappearing(this);
 		}
