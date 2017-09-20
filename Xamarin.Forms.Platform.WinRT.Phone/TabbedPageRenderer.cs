@@ -146,6 +146,8 @@ namespace Xamarin.Forms.Platform.WinRT
 				return;
 
 			_disposed = true;
+
+			PageController?.SendDisappearing();
 			SetElement(null);
 			Tracker = null;
 		}
@@ -187,7 +189,7 @@ namespace Xamarin.Forms.Platform.WinRT
 					return;
 				_showTitle = value;
 
-				Control.ToolbarVisibility = _showTitle ? Visibility.Visible : Visibility.Collapsed;
+				Control.TitleVisibility = _showTitle ? Visibility.Visible : Visibility.Collapsed;
 			}
 		}
 
