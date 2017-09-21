@@ -25,17 +25,17 @@
 	<FontFamily x:Key="FontFamilySemiLight">Segoe UI Light</FontFamily>
 	<FontFamily x:Key="FontFamilySemiBold">Segoe UI Semibold</FontFamily>
 
-	<system:Double x:Key="FontSizeSmall">18.667</system:Double>
-	<system:Double x:Key="FontSizeNormal">20</system:Double>
-	<system:Double x:Key="FontSizeMedium">22.667</system:Double>
-	<system:Double x:Key="FontSizeMediumLarge">25.333</system:Double>
-	<system:Double x:Key="FontSizeLarge">32</system:Double>
-	<system:Double x:Key="FontSizeExtraLarge">42.667</system:Double>
-	<system:Double x:Key="FontSizeExtraExtraLarge">72</system:Double>
-	<system:Double x:Key="FontSizeHuge">186.667</system:Double>
+	<system:Double x:Key="FontSizeSmall">12</system:Double>
+	<system:Double x:Key="FontSizeNormal">16</system:Double>
+	<system:Double x:Key="FontSizeMedium">20</system:Double>
+	<system:Double x:Key="FontSizeMediumLarge">22</system:Double>
+	<system:Double x:Key="FontSizeLarge">24</system:Double>
+	<system:Double x:Key="FontSizeExtraLarge">32</system:Double>
+	<system:Double x:Key="FontSizeExtraExtraLarge">48</system:Double>
+	<system:Double x:Key="FontSizeHuge">64</system:Double>
 
 	<SolidColorBrush x:Key="ForegroundBrush">Black</SolidColorBrush>
-	<SolidColorBrush x:Key="AccentBrush">Green</SolidColorBrush>
+	<SolidColorBrush x:Key="AccentBrush">Navy</SolidColorBrush>
 
 	<Style x:Key="TextBlockBase" TargetType="TextBlock">
 		<Style.Setters>
@@ -53,7 +53,7 @@
 	<Style x:Key="TextLargeStyle" BasedOn="{StaticResource TextBlockBase}" TargetType="TextBlock">
 		<Style.Setters>
 			<Setter Property="FontFamily" Value="{StaticResource FontFamilySemiLight}"></Setter>
-			<Setter Property="FontSize" Value="{StaticResource FontSizeLarge}"></Setter>
+			<Setter Property="FontSize" Value="{StaticResource FontSizeMedium}"></Setter>
 		</Style.Setters>
 	</Style>
 	<Style x:Key="TextAccentStyle" BasedOn="{StaticResource TextBlockBase}" TargetType="TextBlock">
