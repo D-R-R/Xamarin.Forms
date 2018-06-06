@@ -2,7 +2,6 @@
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Windows.UI.Xaml;
-using Windows.UI.Xaml.Automation;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Data;
 using Windows.UI.Xaml.Media;
@@ -18,7 +17,7 @@ namespace Xamarin.Forms.Platform.UWP
 		bool _showTitle;
 
 		VisualElementTracker<Page, FrameworkElement> _tracker;
-
+		
 		public MasterDetailControl Control { get; private set; }
 
 		public MasterDetailPage Element { get; private set; }
@@ -169,6 +168,8 @@ namespace Xamarin.Forms.Platform.UWP
 				UpdateMode();
 			else if(e.PropertyName ==  PlatformConfiguration.WindowsSpecific.Page.ToolbarPlacementProperty.PropertyName)
 				UpdateToolbarPlacement();
+			else if (e.PropertyName == VisualElement.FlowDirectionProperty.PropertyName)
+				UpdateFlowDirection();
 		}
 
 		void ClearDetail()
@@ -208,6 +209,7 @@ namespace Xamarin.Forms.Platform.UWP
 
 			Element.SendAppearing();
 			UpdateBounds();
+			UpdateFlowDirection();
 		}
 
 		void OnControlUnloaded(object sender, RoutedEventArgs routedEventArgs)
@@ -277,6 +279,11 @@ namespace Xamarin.Forms.Platform.UWP
 			(this as ITitleProvider).ShowTitle = !string.IsNullOrEmpty(Control.DetailTitle);
 		}
 
+		void UpdateFlowDirection()
+		{
+			Control.UpdateFlowDirection(Element);
+		}
+
 		void UpdateIsPresented()
 		{
 			// Ignore the IsPresented value being set to false for Split mode on desktop and allow the master
@@ -324,6 +331,9 @@ namespace Xamarin.Forms.Platform.UWP
 		{
 			// Enforce consistency rules on toolbar
 			Control.ShouldShowToolbar = _detail is NavigationPage || _master is NavigationPage;
+			if(_detail is NavigationPage _detailNav)
+				Control.ShouldShowNavigationBar = NavigationPage.GetHasNavigationBar(_detailNav.CurrentPage);
+			
 		}
 
 		public void BindForegroundColor(AppBar appBar)

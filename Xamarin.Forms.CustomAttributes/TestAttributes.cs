@@ -147,6 +147,7 @@ namespace Xamarin.Forms.CustomAttributes
 		WinPhone = 1 << 2,
 		WinRT = 1 << 3,
 		UWP = 1 << 4,
+		WPF = 1 << 5,
 		All = ~0,
 		Default = 0
 	}
@@ -226,6 +227,7 @@ namespace Xamarin.Forms.CustomAttributes
 			BorderColor,
 			BorderRadius,
 			Image,
+			Padding
 		}
 
 		public enum VisualElement
@@ -478,7 +480,10 @@ namespace Xamarin.Forms.CustomAttributes
 			MaximumDate,
 			Focus,
 			IsVisible,
-			TextColor
+			TextColor,
+			FontAttributes,
+			FontFamily,
+			FontSize
 		}
 
 		public enum InputView
@@ -490,11 +495,13 @@ namespace Xamarin.Forms.CustomAttributes
 		{
 			Completed,
 			TextChanged,
+			Placeholder,
 			Text,
 			TextColor,
 			FontAttributes,
 			FontFamily,
-			FontSize
+			FontSize,
+			MaxLength
 		}
 
 		public enum Entry
@@ -518,7 +525,8 @@ namespace Xamarin.Forms.CustomAttributes
 			PlaceholderColor,
 			TextDisabledColor,
 			PlaceholderDisabledColor,
-			PasswordColor
+			PasswordColor,
+			MaxLength
 		}
 
 		public enum Frame
@@ -606,7 +614,8 @@ namespace Xamarin.Forms.CustomAttributes
 		}
 
 		public enum ProgressBar {
-			Progress
+			Progress,
+			ProgressColor
 		}
 
 		public enum RelativeLayout {
@@ -644,7 +653,11 @@ namespace Xamarin.Forms.CustomAttributes
 		public enum Slider {
 			Minimum,
 			Maximum,
-			Value
+			Value,
+			MinimumTrackColor,
+			MaximumTrackColor,
+			ThumbColor,
+			ThumbImage
 		}
 
 		public enum StackLayout {
@@ -667,13 +680,20 @@ namespace Xamarin.Forms.CustomAttributes
 			Format,
 			Time,
 			Focus,
-			TextColor
+			TextColor,
+			FontAttributes,
+			FontFamily,
+			FontSize
 		}
 
 		public enum WebView {
 			UrlWebViewSource,
 			HtmlWebViewSource,
-			LoadHtml
+			LoadHtml,
+			MixedContentDisallowed,
+			MixedContentAllowed,
+			JavaScriptAlert,
+			EvaluateJavaScript
 		}
 
 		public enum UrlWebViewSource {
@@ -706,7 +726,10 @@ namespace Xamarin.Forms.CustomAttributes
 			Items,
 			SelectedIndex,
 			Focus,
-			TextColor
+			TextColor,
+			FontAttributes,
+			FontFamily,
+			FontSize
 		}
 
 		public enum FileImageSource {
@@ -745,7 +768,8 @@ namespace Xamarin.Forms.CustomAttributes
 
 		public enum BoxView
 		{
-			Color
+			Color,
+			CornerRadius
 		}
 
 	}

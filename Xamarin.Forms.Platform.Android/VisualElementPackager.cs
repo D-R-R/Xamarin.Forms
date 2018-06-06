@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using Android.Content;
 using Xamarin.Forms.Internals;
 using Android.Views;
 using AView = Android.Views.View;
@@ -13,6 +14,8 @@ namespace Xamarin.Forms.Platform.Android
 		readonly EventHandler<ElementEventArgs> _childRemovedHandler;
 		readonly EventHandler _childReorderedHandler;
 		List<IVisualElementRenderer> _childViews;
+
+		Dictionary<BindableObject, VisualElementPackager> _childPackagers;
 
 		bool _disposed;
 
@@ -57,6 +60,15 @@ namespace Xamarin.Forms.Platform.Android
 					_childViews = null;
 				}
 
+				if (_childPackagers != null)
+				{
+					foreach (var kvp in _childPackagers)
+						kvp.Value.Dispose();
+
+					_childPackagers.Clear();
+					_childPackagers = null;
+				}
+
 				if (_renderer.Element != null)
 				{
 					_renderer.Element.ChildAdded -= _childAddedHandler;
@@ -77,13 +89,20 @@ namespace Xamarin.Forms.Platform.Android
 
 		void AddChild(VisualElement view, IVisualElementRenderer oldRenderer = null, RendererPool pool = null, bool sameChildren = false)
 		{
-			Performance.Start();
+			Performance.Start(out string reference);
 
-			if (CompressedLayout.GetIsHeadless(view)) {
+			if (CompressedLayout.GetIsHeadless(view))
+			{
 				var packager = new VisualElementPackager(_renderer, view);
+				if (_childPackagers == null)
+					_childPackagers = new Dictionary<BindableObject, VisualElementPackager>();
 				view.IsPlatformEnabled = true;
 				packager.Load();
-			} else {
+
+				_childPackagers[view] = packager;
+			}
+			else
+			{
 				if (_childViews == null)
 					_childViews = new List<IVisualElementRenderer>();
 
@@ -92,9 +111,9 @@ namespace Xamarin.Forms.Platform.Android
 					renderer = pool.GetFreeRenderer(view);
 				if (renderer == null)
 				{
-					Performance.Start("New renderer");
-					renderer = Platform.CreateRenderer(view);
-					Performance.Stop("New renderer");
+					Performance.Start(reference, "New renderer");
+					renderer = Platform.CreateRenderer(view, _renderer.View.Context);
+					Performance.Stop(reference, "New renderer");
 				}
 
 				if (renderer == oldRenderer)
@@ -103,21 +122,21 @@ namespace Xamarin.Forms.Platform.Android
 					renderer.SetElement(view);
 				}
 
-				Performance.Start("Set renderer");
+				Performance.Start(reference, "Set renderer");
 				Platform.SetRenderer(view, renderer);
-				Performance.Stop("Set renderer");
+				Performance.Stop(reference, "Set renderer");
 
-				Performance.Start("Add view");
+				Performance.Start(reference, "Add view");
 				if (!sameChildren)
 				{
 					(_renderer.View as ViewGroup)?.AddView(renderer.View);
 					_childViews.Add(renderer);
 				}
-				Performance.Stop("Add view");
-			}
-			Performance.Stop();
-		}
+				Performance.Stop(reference, "Add view");
 
+				Performance.Stop(reference);
+			}
+		}
 		void EnsureChildOrder()
 		{
 			for (var i = 0; i < ElementController.LogicalChildren.Count; i++)
@@ -145,12 +164,12 @@ namespace Xamarin.Forms.Platform.Android
 
 		void OnChildRemoved(object sender, ElementEventArgs e)
 		{
-			Performance.Start();
+			Performance.Start(out string reference);
 			var view = e.Element as VisualElement;
 			if (view != null)
 				RemoveChild(view);
 
-			Performance.Stop();
+			Performance.Stop(reference);
 		}
 
 		void OnChildrenReordered(object sender, EventArgs e)
@@ -161,14 +180,28 @@ namespace Xamarin.Forms.Platform.Android
 		void RemoveChild(VisualElement view)
 		{
 			IVisualElementRenderer renderer = Platform.GetRenderer(view);
-			_childViews.Remove(renderer);
-			renderer.View.RemoveFromParent();
-			renderer.Dispose();
+			if (renderer == null) // child is itself a compressed layout
+			{
+				if (_childPackagers != null && _childPackagers.TryGetValue (view, out VisualElementPackager packager))
+				{
+					foreach (var child in view.LogicalChildren)
+					{
+						if (child is VisualElement ve)
+							packager.RemoveChild(ve);
+					}
+				}
+			}
+			else
+			{
+				_childViews.Remove(renderer);
+				renderer.View.RemoveFromParent();
+				renderer.Dispose();
+			}
 		}
 
 		void SetElement(VisualElement oldElement, VisualElement newElement)
 		{
-			Performance.Start();
+			Performance.Start(out string reference);
 
 			var sameChildrenTypes = false;
 
@@ -213,7 +246,7 @@ namespace Xamarin.Forms.Platform.Android
 
 			if (newElement != null)
 			{
-				Performance.Start("Setup");
+				Performance.Start(reference, "Setup");
 				newElement.ChildAdded += _childAddedHandler;
 				newElement.ChildRemoved += _childRemovedHandler;
 
@@ -235,10 +268,11 @@ namespace Xamarin.Forms.Platform.Android
 				//	throw new InvalidOperationException ("SetElement did not create the correct number of children");
 #endif
 				EnsureChildOrder();
-				Performance.Stop("Setup");
+				Performance.Stop(reference, "Setup");
 			}
 
-			Performance.Stop();
+			Performance.Stop(reference);
 		}
 	}
 }
+

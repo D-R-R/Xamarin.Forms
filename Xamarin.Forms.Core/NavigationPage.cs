@@ -132,21 +132,19 @@ namespace Xamarin.Forms
 
 		public async Task<Page> PopAsync(bool animated)
 		{
+			var tcs = new TaskCompletionSource<bool>();
 			if (CurrentNavigationTask != null && !CurrentNavigationTask.IsCompleted)
 			{
-				var tcs = new TaskCompletionSource<bool>();
-				Task oldTask = CurrentNavigationTask;
+				var oldTask = CurrentNavigationTask;
 				CurrentNavigationTask = tcs.Task;
 				await oldTask;
-
-				Page page = await PopAsyncInner(animated, false);
-				tcs.SetResult(true);
-				return page;
 			}
+			else
+				CurrentNavigationTask = tcs.Task;
 
-			Task<Page> result = PopAsyncInner(animated, false);
-			CurrentNavigationTask = result;
-			return await result;
+			var result = await PopAsyncInner(animated, false);
+			tcs.SetResult(true);
+			return result;
 		}
 
 		public event EventHandler<NavigationEventArgs> Popped;
@@ -250,6 +248,16 @@ namespace Xamarin.Forms
 			}
 
 			var page = (Page)InternalChildren.Last();
+
+			return await (this as INavigationPageController).RemoveAsyncInner(page, animated, fast);
+		}
+
+		async Task<Page> INavigationPageController.RemoveAsyncInner(Page page, bool animated, bool fast)
+		{
+			if (StackDepth == 1)
+			{
+				return null;
+			}
 
 			var args = new NavigationRequestedEventArgs(page, animated);
 

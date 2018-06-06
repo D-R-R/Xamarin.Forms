@@ -1,7 +1,6 @@
 #region
 
 using System;
-using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Linq;
 using Android.App;
@@ -9,9 +8,7 @@ using Android.Content;
 using Android.Content.Res;
 using Android.OS;
 using Android.Runtime;
-using Android.Support.V4.Content;
 using Android.Support.V7.App;
-using Android.Util;
 using Android.Views;
 using Android.Widget;
 using Xamarin.Forms.Platform.Android.AppCompat;
@@ -19,26 +16,22 @@ using Xamarin.Forms.PlatformConfiguration.AndroidSpecific;
 using Xamarin.Forms.PlatformConfiguration.AndroidSpecific.AppCompat;
 using AToolbar = Android.Support.V7.Widget.Toolbar;
 using AColor = Android.Graphics.Color;
-using AlertDialog = Android.Support.V7.App.AlertDialog;
 using ARelativeLayout = Android.Widget.RelativeLayout;
 using Xamarin.Forms.Internals;
+using System.Threading.Tasks;
 
 #endregion
 
 namespace Xamarin.Forms.Platform.Android
 {
-	public class FormsAppCompatActivity : AppCompatActivity, IDeviceInfoProvider, IStartActivityForResult
+	public class FormsAppCompatActivity : AppCompatActivity, IDeviceInfoProvider
 	{
 		public delegate bool BackButtonPressedEventHandler(object sender, EventArgs e);
 
-		readonly ConcurrentDictionary<int, Action<Result, Intent>> _activityResultCallbacks = new ConcurrentDictionary<int, Action<Result, Intent>>();
-
 		Application _application;
-		int _busyCount;
+
 		AndroidApplicationLifecycleState _currentState;
 		ARelativeLayout _layout;
-
-		int _nextActivityResultCallbackKey;
 
 		AppCompat.Platform _platform;
 
@@ -53,32 +46,12 @@ namespace Xamarin.Forms.Platform.Android
 		{
 			_previousState = AndroidApplicationLifecycleState.Uninitialized;
 			_currentState = AndroidApplicationLifecycleState.Uninitialized;
+			PopupManager.Subscribe(this);
 		}
 
 		IApplicationController Controller => _application;
 
 		public event EventHandler ConfigurationChanged;
-
-		int IStartActivityForResult.RegisterActivityResultCallback(Action<Result, Intent> callback)
-		{
-			int requestCode = _nextActivityResultCallbackKey;
-
-			while (!_activityResultCallbacks.TryAdd(requestCode, callback))
-			{
-				_nextActivityResultCallbackKey += 1;
-				requestCode = _nextActivityResultCallbackKey;
-			}
-
-			_nextActivityResultCallbackKey += 1;
-
-			return requestCode;
-		}
-
-		void IStartActivityForResult.UnregisterActivityResultCallback(int requestCode)
-		{
-			Action<Result, Intent> callback;
-			_activityResultCallbacks.TryRemove(requestCode, out callback);
-		}
 
 		public override void OnBackPressed()
 		{
@@ -116,7 +89,7 @@ namespace Xamarin.Forms.Platform.Android
 				RegisterHandlerForDefaultRenderer(typeof(NavigationPage), typeof(NavigationPageRenderer), typeof(NavigationRenderer));
 				RegisterHandlerForDefaultRenderer(typeof(TabbedPage), typeof(TabbedPageRenderer), typeof(TabbedRenderer));
 				RegisterHandlerForDefaultRenderer(typeof(MasterDetailPage), typeof(MasterDetailPageRenderer), typeof(MasterDetailRenderer));
-                RegisterHandlerForDefaultRenderer(typeof(Switch), typeof(AppCompat.SwitchRenderer), typeof(SwitchRenderer));
+				RegisterHandlerForDefaultRenderer(typeof(Switch), typeof(AppCompat.SwitchRenderer), typeof(SwitchRenderer));
 				RegisterHandlerForDefaultRenderer(typeof(Picker), typeof(AppCompat.PickerRenderer), typeof(PickerRenderer));
 				RegisterHandlerForDefaultRenderer(typeof(CarouselPage), typeof(AppCompat.CarouselPageRenderer), typeof(CarouselPageRenderer));
 
@@ -136,18 +109,26 @@ namespace Xamarin.Forms.Platform.Android
 				_renderersAdded = true;
 			}
 
-			if (application == null)
-				throw new ArgumentNullException("application");
-
-			_application = application;
+			_application = application ?? throw new ArgumentNullException(nameof(application));
 			(application as IApplicationController)?.SetAppIndexingProvider(new AndroidAppIndexProvider(this));
 			Xamarin.Forms.Application.SetCurrentApplication(application);
 
-			SetSoftInputMode();
+			if (Xamarin.Forms.Application.Current.OnThisPlatform().GetWindowSoftInputModeAdjust() != WindowSoftInputModeAdjust.Unspecified)
+				SetSoftInputMode();
 
 			CheckForAppLink(Intent);
 
 			application.PropertyChanged += AppOnPropertyChanged;
+
+			if (application?.MainPage != null)
+			{
+				var iver = Platform.GetRenderer(application.MainPage);
+				if (iver != null)
+				{
+					iver.Dispose();
+					application.MainPage.ClearValue(Platform.RendererProperty);
+				}
+			}
 
 			SetMainPage();
 		}
@@ -155,11 +136,7 @@ namespace Xamarin.Forms.Platform.Android
 		protected override void OnActivityResult(int requestCode, Result resultCode, Intent data)
 		{
 			base.OnActivityResult(requestCode, resultCode, data);
-
-			Action<Result, Intent> callback;
-
-			if (_activityResultCallbacks.TryGetValue(requestCode, out callback))
-				callback(resultCode, data);
+			ActivityResultCallbackRegistry.InvokeCallback(requestCode, resultCode, data);
 		}
 
 		protected override void OnCreate(Bundle savedInstanceState)
@@ -183,7 +160,7 @@ namespace Xamarin.Forms.Platform.Android
 			}
 			else
 				bar = new AToolbar(this);
-			
+
 			SetSupportActionBar(bar);
 
 			_layout = new ARelativeLayout(BaseContext);
@@ -205,10 +182,7 @@ namespace Xamarin.Forms.Platform.Android
 
 		protected override void OnDestroy()
 		{
-			MessagingCenter.Unsubscribe<Page, AlertArguments>(this, Page.AlertSignalName);
-			MessagingCenter.Unsubscribe<Page, bool>(this, Page.BusySetSignalName);
-			MessagingCenter.Unsubscribe<Page, ActionSheetArguments>(this, Page.ActionSheetSignalName);
-
+			PopupManager.Unsubscribe(this);
 			_platform?.Dispose();
 
 			// call at the end to avoid race conditions with Platform dispose
@@ -326,10 +300,7 @@ namespace Xamarin.Forms.Platform.Android
 				return;
 			}
 
-			_busyCount = 0;
-			MessagingCenter.Subscribe<Page, bool>(this, Page.BusySetSignalName, OnPageBusy);
-			MessagingCenter.Subscribe<Page, AlertArguments>(this, Page.AlertSignalName, OnAlertRequested);
-			MessagingCenter.Subscribe<Page, ActionSheetArguments>(this, Page.ActionSheetSignalName, OnActionSheetRequested);
+			PopupManager.ResetBusyCount(this);
 
 			_platform = new AppCompat.Platform(this);
 			if (_application != null)
@@ -339,48 +310,7 @@ namespace Xamarin.Forms.Platform.Android
 			_layout.BringToFront();
 		}
 
-		void OnActionSheetRequested(Page sender, ActionSheetArguments arguments)
-		{
-			var builder = new AlertDialog.Builder(this);
-			builder.SetTitle(arguments.Title);
-			string[] items = arguments.Buttons.ToArray();
-			builder.SetItems(items, (o, args) => arguments.Result.TrySetResult(items[args.Which]));
-
-			if (arguments.Cancel != null)
-				builder.SetPositiveButton(arguments.Cancel, (o, args) => arguments.Result.TrySetResult(arguments.Cancel));
-
-			if (arguments.Destruction != null)
-				builder.SetNegativeButton(arguments.Destruction, (o, args) => arguments.Result.TrySetResult(arguments.Destruction));
-
-			AlertDialog dialog = builder.Create();
-			builder.Dispose();
-			//to match current functionality of renderer we set cancelable on outside
-			//and return null
-			dialog.SetCanceledOnTouchOutside(true);
-			dialog.CancelEvent += (o, e) => arguments.SetResult(null);
-			dialog.Show();
-		}
-
-		void OnAlertRequested(Page sender, AlertArguments arguments)
-		{
-			AlertDialog alert = new AlertDialog.Builder(this).Create();
-			alert.SetTitle(arguments.Title);
-			alert.SetMessage(arguments.Message);
-			if (arguments.Accept != null)
-				alert.SetButton((int)DialogButtonType.Positive, arguments.Accept, (o, args) => arguments.SetResult(true));
-			alert.SetButton((int)DialogButtonType.Negative, arguments.Cancel, (o, args) => arguments.SetResult(false));
-			alert.CancelEvent += (o, args) => { arguments.SetResult(false); };
-			alert.Show();
-		}
-
-		void OnPageBusy(Page sender, bool enabled)
-		{
-			_busyCount = Math.Max(0, enabled ? _busyCount + 1 : _busyCount - 1);
-
-			UpdateProgressBarVisibility(_busyCount > 0);
-		}
-
-		async void OnStateChanged()
+		void OnStateChanged()
 		{
 			if (_application == null)
 				return;
@@ -390,7 +320,7 @@ namespace Xamarin.Forms.Platform.Android
 			else if (_previousState == AndroidApplicationLifecycleState.OnStop && _currentState == AndroidApplicationLifecycleState.OnRestart)
 				_application.SendResume();
 			else if (_previousState == AndroidApplicationLifecycleState.OnPause && _currentState == AndroidApplicationLifecycleState.OnStop)
-				await _application.SendSleepAsync();
+				_application.SendSleep();
 		}
 
 		void RegisterHandlerForDefaultRenderer(Type target, Type handler, Type filter)
@@ -409,55 +339,26 @@ namespace Xamarin.Forms.Platform.Android
 
 		void SetSoftInputMode()
 		{
-			SoftInput adjust = SoftInput.AdjustPan;
+			var adjust = SoftInput.AdjustPan;
 
 			if (Xamarin.Forms.Application.Current != null)
 			{
-				var elementValue = Xamarin.Forms.Application.Current.OnThisPlatform().GetWindowSoftInputModeAdjust();
+				WindowSoftInputModeAdjust elementValue = Xamarin.Forms.Application.Current.OnThisPlatform().GetWindowSoftInputModeAdjust();
 				switch (elementValue)
 				{
-					default:
-					case WindowSoftInputModeAdjust.Pan:
-						adjust = SoftInput.AdjustPan;
-						break;
-
 					case WindowSoftInputModeAdjust.Resize:
 						adjust = SoftInput.AdjustResize;
+						break;
+					case WindowSoftInputModeAdjust.Unspecified:
+						adjust = SoftInput.AdjustUnspecified;
+						break;
+					default:
+						adjust = SoftInput.AdjustPan;
 						break;
 				}
 			}
 
 			Window.SetSoftInputMode(adjust);
-		}
-
-		public override void OnWindowAttributesChanged(WindowManagerLayoutParams @params)
-		{
-			base.OnWindowAttributesChanged(@params);
-
-			if (Xamarin.Forms.Application.Current == null || Xamarin.Forms.Application.Current.MainPage == null)
-				return;
-
-			// sync between Window flag and Forms property
-			if (@params.Flags.HasFlag(WindowManagerFlags.Fullscreen))
-			{
-				if (Forms.TitleBarVisibility != AndroidTitleBarVisibility.Never)
-					Forms.TitleBarVisibility = AndroidTitleBarVisibility.Never;
-			}
-			else
-			{
-				if (Forms.TitleBarVisibility != AndroidTitleBarVisibility.Default)
-					Forms.TitleBarVisibility = AndroidTitleBarVisibility.Default;
-			}
-		}
-
-		void UpdateProgressBarVisibility(bool isBusy)
-		{
-			if (!Forms.SupportsProgress)
-				return;
-#pragma warning disable 612, 618
-			SetProgressBarIndeterminate(true);
-			SetProgressBarIndeterminateVisibility(isBusy);
-#pragma warning restore 612, 618
 		}
 
 		internal class DefaultApplication : Application

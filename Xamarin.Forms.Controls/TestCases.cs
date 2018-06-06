@@ -1,13 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
-using Xamarin.Forms.Controls.TestCasesPages;
 using Xamarin.Forms.CustomAttributes;
-using Xamarin.Forms.Internals;
 
 namespace Xamarin.Forms.Controls
 {
@@ -16,6 +11,11 @@ namespace Xamarin.Forms.Controls
 		public class TestCaseScreen : TableView
 		{
 			public static Dictionary<string, Action> PageToAction = new Dictionary<string, Action> ();
+
+			bool _filterBugzilla;
+			bool _filterNone;
+			bool _filterGitHub;
+			string _filter;
 
 			static TextCell MakeIssueCell (string text, string detail, Action tapped)
 			{
@@ -75,14 +75,7 @@ namespace Xamarin.Forms.Controls
 
 			static void TrackOnInsights (Page page)
 			{
-				if (Insights.IsInitialized) {
-					Insights.Track ("Navigation", new Dictionary<string, string> {
-						{
-							"Pushing",
-							page.GetType ().Name
-						}
-					});
-				}
+				
 			}
 
 			Page ActivatePage (Type type)
@@ -94,35 +87,50 @@ namespace Xamarin.Forms.Controls
 				return page;
 			}
 
-			
-
-			public TestCaseScreen ()
+			class IssueModel
 			{
-				AutomationId = "TestCasesIssueList";
+				public IssueTracker IssueTracker { get; set; }
+				public int IssueNumber { get; set; }
+				public int IssueTestNumber { get; set; }
+				public string Name { get; set; }
+				public string Description {get; set; }
+				public Action Action { get; set; }
 
-				Intent = TableIntent.Settings;
+				public bool Matches(string filter)
+				{
+					if (string.IsNullOrEmpty(filter))
+					{
+						return true;
+					}
 
-				var assembly = typeof (TestCases).GetTypeInfo ().Assembly;
+					// If the user has typed something which looks like part of a short issue name 
+					// (e.g. 'B605' or 'G13'), make sure we match that
+					if (string.Compare(Name, 0, filter, 0, filter.Length, StringComparison.OrdinalIgnoreCase) == 0)
+					{
+						return true;
+					}
 
-				var issueModels = 
-					(from typeInfo in assembly.DefinedTypes.Select (o => o.AsType ().GetTypeInfo ())
-					where typeInfo.GetCustomAttribute<IssueAttribute> () != null
-					let attribute = typeInfo.GetCustomAttribute<IssueAttribute> ()
-					select new {
-						IssueTracker = attribute.IssueTracker,
-						IssueNumber = attribute.IssueNumber,
-						IssueTestNumber = attribute.IssueTestNumber,
-						Name = attribute.DisplayName,
-						Description = attribute.Description,
-						Action = ActivatePageAndNavigate (attribute, typeInfo.AsType ())
-					}).ToList();
+					if (Description.ToUpper().Contains(filter.ToUpper()))
+					{
+						return true;
+					}
 
-				var root = new TableRoot ();
-				var section = new TableSection ("Bug Repro");
-				root.Add (section);
+					if (IssueNumber.ToString().Contains(filter))
+					{
+						return true;
+					}
 
+					return false;
+				}
+			}
+
+			readonly List<IssueModel> _issues;
+			TableSection _section;
+
+			void VerifyNoDuplicates()
+			{
 				var duplicates = new HashSet<string> ();
-				issueModels.ForEach (im =>
+				_issues.ForEach (im =>
 				{
 					if (duplicates.Contains (im.Name) && !IsExempt (im.Name)) {
 						throw new NotSupportedException ("Please provide unique tracker + issue number combo: " 
@@ -131,32 +139,107 @@ namespace Xamarin.Forms.Controls
 
 					duplicates.Add (im.Name);
 				});
+			}
 
-				var githubIssueCells = 
-					from issueModel in issueModels
-					where issueModel.IssueTracker == IssueTracker.Github
-					orderby issueModel.IssueNumber descending
-					select MakeIssueCell (issueModel.Name, issueModel.Description, issueModel.Action);
+			public TestCaseScreen()
+			{
+				AutomationId = "TestCasesIssueList";
 
-				var bugzillaIssueCells = 
-					from issueModel in issueModels
-					where issueModel.IssueTracker == IssueTracker.Bugzilla
-					orderby issueModel.IssueNumber descending
-					select MakeIssueCell (issueModel.Name, issueModel.Description, issueModel.Action);
+				Intent = TableIntent.Settings;
 
-				var untrackedIssueCells = 
-					from issueModel in issueModels
-					where issueModel.IssueTracker == IssueTracker.None
-					orderby issueModel.IssueNumber descending, issueModel.Description 
-					select MakeIssueCell (issueModel.Name, issueModel.Description, issueModel.Action);
+				var assembly = typeof(TestCases).GetTypeInfo().Assembly;
 
-				var issueCells = bugzillaIssueCells.Concat (githubIssueCells).Concat (untrackedIssueCells);
+				_issues = 
+					(from typeInfo in assembly.DefinedTypes.Select (o => o.AsType ().GetTypeInfo ())
+					where typeInfo.GetCustomAttribute<IssueAttribute> () != null
+					let attribute = typeInfo.GetCustomAttribute<IssueAttribute> ()
+					select new IssueModel {
+						IssueTracker = attribute.IssueTracker,
+						IssueNumber = attribute.IssueNumber,
+						IssueTestNumber = attribute.IssueTestNumber,
+						Name = attribute.DisplayName,
+						Description = attribute.Description,
+						Action = ActivatePageAndNavigate (attribute, typeInfo.AsType ())
+					}).ToList();
+
+				VerifyNoDuplicates();
+
+				FilterIssues();
+			}
+
+			public void FilterTracker(IssueTracker tracker)
+			{
+				switch (tracker)
+				{
+					case IssueTracker.Github:
+						_filterGitHub = !_filterGitHub;
+						break;
+					case IssueTracker.Bugzilla:
+						_filterBugzilla = !_filterBugzilla;
+						break;
+					case IssueTracker.None:
+						_filterNone = !_filterNone;
+						break;
+					default:
+						throw new ArgumentOutOfRangeException(nameof(tracker), tracker, null);
+				}
+
+				FilterIssues(_filter);
+			}
+
+			public void FilterIssues(string filter = null)
+			{
+				_filter = filter;
+
+				PageToAction.Clear();
+
+				var issueCells = Enumerable.Empty<TextCell>();
+
+				if (!_filterBugzilla)
+				{
+					var bugzillaIssueCells =
+						from issueModel in _issues
+						where issueModel.IssueTracker == IssueTracker.Bugzilla && issueModel.Matches(filter)
+						orderby issueModel.IssueNumber descending
+						select MakeIssueCell(issueModel.Name, issueModel.Description, issueModel.Action);
+
+					issueCells = issueCells.Concat(bugzillaIssueCells);
+				}
+
+				if (!_filterGitHub)
+				{
+					var githubIssueCells =
+						from issueModel in _issues
+						where issueModel.IssueTracker == IssueTracker.Github && issueModel.Matches(filter)
+						orderby issueModel.IssueNumber descending
+						select MakeIssueCell(issueModel.Name, issueModel.Description, issueModel.Action);
+
+					issueCells = issueCells.Concat(githubIssueCells);
+				}
+
+				if (!_filterNone)
+				{
+					var untrackedIssueCells =
+						from issueModel in _issues
+						where issueModel.IssueTracker == IssueTracker.None && issueModel.Matches(filter)
+						orderby issueModel.IssueNumber descending, issueModel.Description
+						select MakeIssueCell(issueModel.Name, issueModel.Description, issueModel.Action);
+
+					issueCells = issueCells.Concat(untrackedIssueCells);
+				}
+				
+				if (_section != null)
+				{
+					Root.Remove(_section);
+				}
+
+				_section = new TableSection("Bug Repro");
 
 				foreach (var issueCell in issueCells) {
-					section.Add (issueCell);
+					_section.Add (issueCell);
 				} 
 
-				Root = root;
+				Root.Add(_section);
 			}
 
 			// Legacy reasons, do not add to this list
@@ -184,6 +267,7 @@ namespace Xamarin.Forms.Controls
 			};
 
 			var searchBar = new SearchBar() {
+				MinimumHeightRequest = 42, // Need this for Android N, see https://bugzilla.xamarin.com/show_bug.cgi?id=43975
 				AutomationId = "SearchBarGo"
 			};
 
@@ -209,7 +293,14 @@ namespace Xamarin.Forms.Controls
 			rootLayout.Children.Add (leaveTestCasesButton);
 			rootLayout.Children.Add (searchBar);
 			rootLayout.Children.Add (searchButton);
-			rootLayout.Children.Add (new TestCaseScreen ());
+
+			var testCaseScreen = new TestCaseScreen();
+
+			rootLayout.Children.Add(CreateTrackerFilter(testCaseScreen));
+
+			rootLayout.Children.Add(testCaseScreen);
+
+			searchBar.TextChanged += (sender, args) => SearchBarOnTextChanged(sender, args, testCaseScreen);
 
 			var page = new NavigationPage(testCasesRoot);
 			switch (Device.RuntimePlatform) {
@@ -218,13 +309,49 @@ namespace Xamarin.Forms.Controls
 			default:
 				page.Title = "Test Cases";
 				break;
-			case Device.WinPhone:
 			case Device.UWP:
-			case Device.WinRT:
 				page.Title = "Tests";
 				break;
 			}
 			return page;
+		}
+
+		static Layout CreateTrackerFilter(TestCaseScreen testCaseScreen)
+		{
+			var trackerFilterLayout = new StackLayout
+			{
+				Orientation = StackOrientation.Horizontal,
+				HorizontalOptions = LayoutOptions.Fill
+			};
+
+			var bzSwitch = new Switch { IsToggled = true };
+			trackerFilterLayout.Children.Add(new Label { Text = "Bugzilla" });
+			trackerFilterLayout.Children.Add(bzSwitch);
+			bzSwitch.Toggled += (sender, args) => testCaseScreen.FilterTracker(IssueTracker.Bugzilla);
+
+			var ghSwitch = new Switch { IsToggled = true };
+			trackerFilterLayout.Children.Add(new Label { Text = "GitHub" });
+			trackerFilterLayout.Children.Add(ghSwitch);
+			ghSwitch.Toggled += (sender, args) => testCaseScreen.FilterTracker(IssueTracker.Github);
+
+			var noneSwitch = new Switch { IsToggled = true };
+			trackerFilterLayout.Children.Add(new Label { Text = "None" });
+			trackerFilterLayout.Children.Add(noneSwitch);
+			noneSwitch.Toggled += (sender, args) => testCaseScreen.FilterTracker(IssueTracker.None);
+
+			return trackerFilterLayout;
+		}
+
+		static void SearchBarOnTextChanged(object sender, TextChangedEventArgs textChangedEventArgs, TestCaseScreen cases)
+		{
+			var filter = textChangedEventArgs.NewTextValue;
+
+			if (String.IsNullOrEmpty(filter))
+			{
+				return;
+			}
+
+			cases.FilterIssues(filter);
 		}
 	}
 
