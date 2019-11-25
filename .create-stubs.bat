@@ -127,34 +127,3 @@ echo foo > Xamarin.Forms.Maps.Tizen\bin\%CONFIG%\Tizen40\Xamarin.Forms.Maps.Tize
 mkdir Xamarin.Forms.Platform.Tizen\bin\%CONFIG%\tizen40
 echo foo > Xamarin.Forms.Platform.Tizen\bin\%CONFIG%\tizen40\Xamarin.forms.Platform.tizen.dll
 echo foo > Xamarin.Forms.Platform.Tizen\bin\%CONFIG%\tizen40\Xamarin.forms.Platform.dll
-
-mkdir Xamarin.Forms.Platform.UAP\bin\%CONFIG%\
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\Xamarin.Forms.Platform.UAP.dll
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\Xamarin.Forms.Platform.UAP.pri
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\Xamarin.Forms.Platform.UAP.xr.xml
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\FormsProgressBarStyle.xbf
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\FormsFlyout.xbf
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\FormsCommandBarStyle.xbf
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\Resources.xbf
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\FormsTextBoxStyle.xbf
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\AutoSuggestStyle.xbf
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\SliderStyle.xbf
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\MasterDetailControlStyle.xbf
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\PageControlStyle.xbf
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\TabbedPageStyle.xbf
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\FormsEmbeddedPageWrapper.xbf
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\StepperControl.xbf
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\FormsCheckBoxStyle.xbf
-
-mkdir Xamarin.Forms.Platform.UAP\bin\%CONFIG%\Microsoft.UI.Xaml
-mkdir Xamarin.Forms.Platform.UAP\bin\%CONFIG%\Microsoft.UI.Xaml\DensityStyles
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\Microsoft.UI.Xaml\DensityStyles\Compact.xbf
-
-mkdir Xamarin.Forms.Platform.UAP\bin\%CONFIG%\Shell
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\Shell\ShellStyles.xbf
-
-mkdir Xamarin.Forms.Platform.UAP\bin\%CONFIG%\CollectionView\
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\CollectionView\ItemsViewStyles.xbf
-
-mkdir Xamarin.Forms.Platform.UAP\bin\%CONFIG%\Items
-echo foo > Xamarin.Forms.Platform.UAP\bin\%CONFIG%\Items\ItemsViewStyles.xbf

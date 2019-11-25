@@ -55,7 +55,7 @@ if "%1" == "droidios" (
    msbuild /v:m /p:platform="any cpu" .xamarin.forms.ios.nuget.sln
 )
 if "%1" == "uap" (
-   set CONFIG=debug
+   set CONFIG=release
    call .create-stubs.bat
    %NUGET_EXE% restore .xamarin.forms.uap.nuget.sln
    msbuild /v:m /p:platform="any cpu" .xamarin.forms.uap.nuget.sln /t:restore
@@ -86,7 +86,7 @@ if "%1" == "rall" (
 if "%DEBUG_VERSION%"=="" set DEBUG_VERSION=0
 set /a DEBUG_VERSION=%DEBUG_VERSION%+1
 pushd .nuspec
-%NUGET_EXE% pack Xamarin.Forms.nuspec -properties configuration=%CONFIG%;platform=anycpu -Version 9.9.%DEBUG_VERSION%
+%NUGET_EXE% pack Xamarin.Forms.nuspec -properties configuration=%CONFIG%;platform=anycpu -Version 4.4.0-DRR-netstandard14.3
 if "%CREATE_MAP_NUGET%" NEQ "" (
 REM Requires building x86, x64, AMD
 	%NUGET_EXE% pack Xamarin.Forms.Maps.nuspec -properties configuration=%CONFIG%;platform=anycpu -Version 9.9.%DEBUG_VERSION%
