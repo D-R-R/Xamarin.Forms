@@ -421,7 +421,7 @@ namespace Xamarin.Forms.Build.Tasks
 				tPropertyRef = lastProp.property.PropertyType.ResolveGenericParameters(lastProp.propDeclTypeRef);
 			}
 			tPropertyRef = module.ImportReference(tPropertyRef);
-			var valuetupleRef = context.Module.ImportReference(module.ImportReference(("mscorlib", "System", "ValueTuple`2")).MakeGenericInstanceType(new[] { tPropertyRef, module.TypeSystem.Boolean }));
+			var valuetupleRef = context.Module.ImportReference(module.ImportReference(("System.ValueTuple", "System", "ValueTuple`2")).MakeGenericInstanceType(new[] { tPropertyRef, module.TypeSystem.Boolean }));
 			var funcRef = module.ImportReference(module.ImportReference(("mscorlib", "System", "Func`2")).MakeGenericInstanceType(new [] { tSourceRef, valuetupleRef }));
 			var actionRef = module.ImportReference(module.ImportReference(("mscorlib", "System", "Action`2")).MakeGenericInstanceType(new [] { tSourceRef, tPropertyRef }));
 			var funcObjRef = module.ImportReference(module.ImportReference(("mscorlib", "System", "Func`2")).MakeGenericInstanceType(new [] { tSourceRef, module.TypeSystem.Object }));
@@ -566,6 +566,8 @@ namespace Xamarin.Forms.Build.Tasks
 
 		static IEnumerable<Instruction> CompiledBindingGetGetter(TypeReference tSourceRef, TypeReference tPropertyRef, IList<(PropertyDefinition property, TypeReference propDeclTypeRef, string indexArg)> properties, ElementNode node, ILContext context)
 		{
+//	2019-11-30 DRR: TODO: Update this disassembly.
+//
 //				.method private static hidebysig default valuetype[mscorlib] System.ValueTuple`2<string, bool> '<Main>m__0' (class ViewModel A_0)  cil managed
 //				{
 //					.custom instance void class [mscorlib] System.Runtime.CompilerServices.CompilerGeneratedAttribute::'.ctor'() =  (01 00 00 00 ) // ....
@@ -587,7 +589,7 @@ namespace Xamarin.Forms.Build.Tasks
 //				}
 
 			var module = context.Module;
-			var tupleRef = module.ImportReference(module.ImportReference(("mscorlib", "System", "ValueTuple`2")).MakeGenericInstanceType(new[] { tPropertyRef, module.TypeSystem.Boolean }));
+			var tupleRef = module.ImportReference(module.ImportReference(("System.ValueTuple", "System", "ValueTuple`2")).MakeGenericInstanceType(new[] { tPropertyRef, module.TypeSystem.Boolean }));
 			var tupleCtorRef = module.ImportCtorReference(tupleRef, 2);
 			tupleCtorRef = module.ImportReference(tupleCtorRef.ResolveGenericParameters(tupleRef, module));
 			var getter = new MethodDefinition($"<{context.Body.Method.Name}>typedBindingsM__{typedBindingCount++}",
